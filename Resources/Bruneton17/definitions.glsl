@@ -282,4 +282,9 @@ struct AtmosphereParameters {
   // angle yielding negligible sky light radiance values. For instance, for the
   // Earth case, 102 degrees is a good choice - yielding mu_s_min = -0.2).
   Number mu_s_min;
+
+  Number TempBase;
+  Number MinTemp;
+  Number GroundLevelTemp;
+  
 };

@@ -33,6 +33,11 @@ cbuffer SKYATMOSPHERE_BUFFER : register(b1)
 	float3	ground_albedo;
 	float   pad0;
 
+	float TempBase;
+	float MinTemp;
+	float GroundLevelTemp;
+
+
 	float4 rayleigh_density[3];
 	float4 mie_density[3];
 	float4 absorption_density[3];
@@ -76,6 +81,8 @@ cbuffer SKYATMOSPHERE_BUFFER : register(b1)
 	float MultiScatteringLUTRes;
 	float pad9;
 	float pad10;
+	
+	
 };
 
 struct AtmosphereParameters
@@ -112,6 +119,11 @@ struct AtmosphereParameters
 
 	// The albedo of the ground.
 	float3 GroundAlbedo;
+	
+	float TempBase;
+	float MinTemp;
+	float GroundLevelTemp;
+	
 };
 
 AtmosphereParameters GetAtmosphereParameters()
@@ -136,6 +148,10 @@ AtmosphereParameters GetAtmosphereParameters()
 	Parameters.GroundAlbedo = ground_albedo;
 	Parameters.BottomRadius = bottom_radius;
 	Parameters.TopRadius = top_radius;
+		
+	Parameters.TempBase = TempBase;
+	Parameters.MinTemp = MinTemp;
+	Parameters.GroundLevelTemp = GroundLevelTemp;
 	return Parameters;
 }
 

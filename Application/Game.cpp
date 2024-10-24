@@ -763,6 +763,10 @@ static float RayleighScaleHeight;
 static float AbsorptionLength;
 static GlslVec3 AbsorptionColor;
 
+static float TempBase;
+static float MinTemp;
+static float GroundLevelTemp;
+
 static float AtmosphereHeight;
 
 static GlslVec3 uiGroundAbledo = {0.0f, 0.0f, 0.0f};
@@ -842,6 +846,10 @@ void Game::render()
 
 			AbsorptionLength = length3(AtmosphereInfos.absorption_extinction);
 			AbsorptionColor = AbsorptionLength == 0.0f ? vec3Zero : normalize3(AtmosphereInfos.absorption_extinction, AbsorptionLength);
+
+ 		TempBase = 0.9f;
+		MinTemp = 0.0f;
+		GroundLevelTemp = 0.0f;
 		}
 
 		ImGui::ColorEdit3( "MieScattCoeff", &MieScatteringColor.x);
@@ -856,8 +864,11 @@ void Game::render()
 		ImGui::SliderFloat("Atmos height", &AtmosphereHeight, 10.0f, 150.0f);
 		ImGui::SliderFloat("MieScaleHeight", &MieScaleHeight, 0.5f, 20.0f);
 		ImGui::SliderFloat("RayScaleHeight", &RayleighScaleHeight, 0.5f, 20.0f);
-
 		ImGui::ColorEdit3("Ground albedo", &uiGroundAbledo.x);
+
+		ImGui::SliderFloat("TempBase", &TempBase, 0.5f, 0.9f, "%.5f", 0.1f);
+		ImGui::SliderFloat("MinTemp", &MinTemp, -100.0f, 100.0f, "%.5f", 0.2f);
+		ImGui::SliderFloat("GroundLevelTemp", &GroundLevelTemp, -1000.0f, 1000.0f, "%.5f", 10.0f);
 
 		ImGui::End();
 		////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -913,6 +924,10 @@ void Game::render()
 		AtmosphereInfos.mie_density.layers[1].exp_scale = -1.0f / MieScaleHeight;
 		AtmosphereInfos.rayleigh_density.layers[1].exp_scale = -1.0f / RayleighScaleHeight;
 		AtmosphereInfos.ground_albedo = uiGroundAbledo;
+
+		AtmosphereInfos.TempBase = TempBase;
+		AtmosphereInfos.MinTemp = MinTemp;
+		AtmosphereInfos.GroundLevelTemp = GroundLevelTemp;
 	}
 
 	GPU_SCOPED_TIMEREVENT(GameRender, 75, 75, 75);

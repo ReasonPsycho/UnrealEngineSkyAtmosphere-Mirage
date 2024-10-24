@@ -162,6 +162,11 @@ private:
 		DimensionlessSpectrum ground_albedo;
 		float pad0;
 
+	float TempBase;
+	float MinTemp;
+	float   pad1;
+	float   pad2;
+
 		float rayleigh_density[12];
 		float mie_density[12];
 		float absorption_density[12];
@@ -263,7 +268,11 @@ private:
 	PixelShader*  RenderWithLutPS;
 
 
-
+enum {
+		RefractDisabled = 0,
+		RefractEnabled,
+		RefractCount
+	};
 	enum {
 		TransmittanceMethodDeltaTracking = 0,
 		TransmittanceMethodRatioTracking,

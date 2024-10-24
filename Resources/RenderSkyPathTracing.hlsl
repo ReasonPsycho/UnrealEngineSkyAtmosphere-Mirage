@@ -171,6 +171,40 @@ MediumSample sampleMedium(in PathTracingContext ptc)
 }
 
 
+float basedLog(float base, float x) {
+	return log(x) / log(base);
+}
+
+float TemperatureSample(in PathTracingContext ptc,in float height)
+{
+	return (-basedLog(ptc.Atmosphere.TempBase, height + ptc.Atmosphere.GroundLevelTemp) + ptc.Atmosphere.MinTemp) * 274.15f;
+}
+
+float TemperatureIOR(in float tmp1,in float tmp2)
+{
+	return 1 + 0.000292 * (tmp1/tmp2);
+}
+
+float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
+	float delta = distance(p1,p2);
+	// Sample the refractive index at nearby points for finite difference computation
+	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at point P1
+	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y));  // Sample at a point offset by delta in the x direction
+
+	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (y1)
+	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y + delta));  // Sample offset in the y direction
+
+	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (z1)
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y + delta));  // Sample at a point offset by delta in the z direction
+
+	// Compute finite differences (gradients)
+	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
+	float gradient_y = (eta_y2 - eta_y1) / delta;  // Approximate gradient in y direction
+	float gradient_z = (eta_z2 - eta_z1) / delta;  // Approximate gradient in z direction
+
+	// Combine to form the gradient vector (normal vector to the isosurface)
+	return normalize(float3(gradient_x, gradient_y, gradient_z));
+}
 
 ////////////////////////////////////////////////////////////
 // Transmittance integrator
@@ -482,10 +516,12 @@ bool Integrate(
 	inout Ray wo,
 	inout int OutScatteringType)
 {
+	Ray localWi = wi;
+
 	OutScatteringType = D_SCATT_TYPE_NONE;
 
 	float3 P0 = ptc.P;
-	if (!getNearestIntersection(ptc, createRay(P0, wi.d), P))
+	if (!getNearestIntersection(ptc, createRay(P0, localWi.d), P))
 		return false;
 	float tMax = length(P - P0);
 
@@ -531,7 +567,8 @@ bool Integrate(
 		}
 
 		// Update the shading context
-		float3 P1 = P0 + t * wi.d;
+		float3 P1 = P0 + t * localWi.d;
+		float3 orginalPoint = ptc.P;
 		ptc.P = P1;
 
 #if DEBUGENABLED // Sample point
@@ -560,11 +597,19 @@ bool Integrate(
 		}
 		else if (xi < (medium.extinction / ptc.extinctionMajorant))	// on top of scattering, as extinction = scattering + absorption
 			eventAbsorb = true;
-		// else null event
+
+	 else // null event
+	 {
+	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.y),TemperatureSample(ptc, P1.y));  // Ratio of refractive indices (e.g., air to glass)
+	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
+	 		float3 refractedRay = refract(localWi.d, normal, eta);
+	 		localWi.d = refractedRay;
+	 }
 	} while (!(eventScatter || eventAbsorb));
 
 	if (eventScatter && all(extinction > 0.0))
 	{
+	
 #if DEBUGENABLED // Path
 		if (ptc.debugEnabled) { addGpuDebugLine(ToDebugWorld + P0, ToDebugWorld + ptc.P, float3(0, 1, 0)); }
 #endif
@@ -593,7 +638,7 @@ bool Integrate(
 	else
 	{
 		// Max distance reached without absorption or scattering event. Keep lastSurfaceIntersection computed in getNearestIntersection above.
-		P = P0 + tMax * wi.d; // out of the volume range
+		P = P0 + tMax * localWi.d; // out of the volume range
 
 #if DEBUGENABLED // Path
 		if (ptc.debugEnabled) { addGpuDebugLine(ToDebugWorld + P0, ToDebugWorld + P, float3(0, 1, 0)); }
@@ -605,7 +650,7 @@ bool Integrate(
 	}
 
 	L = 0.0f;
-	wo = createRay(P + wi.d*RAYDPOS, wi.d);
+	wo = createRay(P + localWi.d*RAYDPOS, localWi.d);
 
 	return true;
 }
