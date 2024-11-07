@@ -429,7 +429,7 @@ Texture3D::Texture3D(D3dTexture3dDesc& desc, D3dSubResourceData* initialData) :
 	ID3D11Device* device = g_dx11Device->getDevice();
 	HRESULT hr = device->CreateTexture3D(&mDesc, initialData, &mTexture);
 	ATLASSERT(hr == S_OK);
-	
+
 	if (mDesc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
 	{
 		CD3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc(D3D11_SRV_DIMENSION_TEXTURE3D);

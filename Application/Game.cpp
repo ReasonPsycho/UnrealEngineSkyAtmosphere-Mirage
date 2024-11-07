@@ -285,6 +285,57 @@ auto createTexture2dFromExr = [&](const char *filename)
 	return tex;
 };
 
+auto createTexture3dFromDir = [&](const char *directoryPath)
+{
+    std::regex exrFormat(".*\\.exr$");
+    std::vector<std::filesystem::path> exrFiles;
+    for(const auto &file: std::filesystem::directory_iterator(directoryPath)) {
+        if(std::regex_match(file.path().string(), exrFormat)) {
+            std::string filePath = file.path().string();
+            std::replace( filePath.begin(), filePath.end(), '\\', '/'); // replace all '\\' to '/'
+            exrFiles.push_back(std::filesystem::path(filePath));
+        }
+    }
+
+	std::string myStr = exrFiles[0].string();
+	const char* myCStr = myStr.c_str();
+
+	const char* exrErrorStr = nullptr;
+	float* rgba = nullptr;
+	int width = -1;
+	int height = -1;
+	const char* err = nullptr;
+	int exrError = LoadEXR(&rgba, &width, &height, myCStr, &err);
+	ATLASSERT(exrError == TINYEXR_SUCCESS);
+	free(rgba);
+
+    D3D11_TEXTURE3D_DESC texDesc = Texture3D::initDefault(DXGI_FORMAT_R32G32B32A32_FLOAT, width, height,exrFiles.size(), false, false);
+
+	std::vector<D3D11_SUBRESOURCE_DATA> subresourceData(exrFiles.size());
+    std::vector<float*> rgbaPtrs(exrFiles.size());
+
+    int i = 0;
+    for(const auto &filePath: exrFiles) {
+        myStr = filePath.string();
+        myCStr = myStr.c_str();
+        exrError = LoadEXR(&rgbaPtrs[i], &width, &height, myCStr, &err);
+        ATLASSERT(exrError == TINYEXR_SUCCESS);
+        subresourceData[i].pSysMem = &rgbaPtrs[i];        // Pointer to each slice's data
+        subresourceData[i].SysMemPitch = width * 4;  // Adjust for RGBA format
+        subresourceData[i].SysMemSlicePitch = width * height * 4;
+        i++;
+    }
+	
+	D3D11_SUBRESOURCE_DATA* data = subresourceData.data(); 
+    Texture3D* tex = new Texture3D(texDesc, data);
+    
+    for(auto &ptr: rgbaPtrs) {
+        free(ptr);
+    }
+    
+    return tex;
+};
+
 void Game::saveBackBufferHdr(const char* filepath)
 {
 	const D3D11_TEXTURE2D_DESC& desc = mBackBufferHdrStagingTexture->mDesc;
@@ -419,6 +470,8 @@ void Game::allocateResolutionIndependentResources()
 
 	mBlueNoise2dTex = createTexture2dFromExr("./Resources/bluenoise.exr");		// I do not remember where this noise texture comes from.
 	mTerrainHeightmapTex = createTexture2dFromExr("./Resources/heightmap1.exr");
+
+	//mTemperatureMapTex = createTexture3dFromDir("./Resources/Blender/TemperatureSpriteSheet");
 
 	D3dTexture2dDesc desc = Texture2D::initDefault(DXGI_FORMAT_R16G16B16A16_FLOAT, LutsInfo.TRANSMITTANCE_TEXTURE_WIDTH, LutsInfo.TRANSMITTANCE_TEXTURE_HEIGHT, true, true);
 	mTransmittanceTex = new Texture2D(desc);
@@ -847,8 +900,8 @@ void Game::render()
 			AbsorptionLength = length3(AtmosphereInfos.absorption_extinction);
 			AbsorptionColor = AbsorptionLength == 0.0f ? vec3Zero : normalize3(AtmosphereInfos.absorption_extinction, AbsorptionLength);
 
- 		TempBase = 0.9f;
-		MinTemp = 0.0f;
+ 		TempBase = 1.1f;
+		MinTemp = 60.0f;
 		GroundLevelTemp = 0.0f;
 		}
 
@@ -866,7 +919,7 @@ void Game::render()
 		ImGui::SliderFloat("RayScaleHeight", &RayleighScaleHeight, 0.5f, 20.0f);
 		ImGui::ColorEdit3("Ground albedo", &uiGroundAbledo.x);
 
-		ImGui::SliderFloat("TempBase", &TempBase, 0.5f, 0.9f, "%.5f", 0.1f);
+		ImGui::SliderFloat("TempBase", &TempBase, 1.0f, 1.5f, "%.5f", 0.1f);
 		ImGui::SliderFloat("MinTemp", &MinTemp, -100.0f, 100.0f, "%.5f", 0.2f);
 		ImGui::SliderFloat("GroundLevelTemp", &GroundLevelTemp, -1000.0f, 1000.0f, "%.5f", 10.0f);
 

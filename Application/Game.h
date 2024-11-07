@@ -5,7 +5,8 @@
 
 #include "Dx11Base/WindowInput.h"
 #include "Dx11Base/Dx11Device.h"
-
+#include <filesystem>
+#include <regex>
 
 #include "SkyAtmosphereCommon.h"
 #include "GpuDebugRenderer.h"
@@ -127,6 +128,8 @@ private:
 	Texture2D* mTerrainHeightmapTex;
 	Texture2D* mBlueNoise2dTex;
 
+	Texture3D* mTemperatureMapTex;
+
 	uint32 mFrameId = 0;
 	bool takeScreenShot = false;
 
@@ -162,10 +165,11 @@ private:
 		DimensionlessSpectrum ground_albedo;
 		float pad0;
 
-	float TempBase;
-	float MinTemp;
-	float   pad1;
-	float   pad2;
+		bool implementRefraction = false;
+		float TempBase;
+		float MinTemp;
+		float   pad1;
+		float   pad2;
 
 		float rayleigh_density[12];
 		float mie_density[12];
@@ -351,6 +355,7 @@ enum {
 	int uiViewRayMarchMaxSPP = 14;
 
 	bool RenderTerrain = true;
+
 
 	// Render functions
 	void updateSkyAtmosphereConstant();

@@ -171,13 +171,17 @@ MediumSample sampleMedium(in PathTracingContext ptc)
 }
 
 
+////////////////////////////////////////////////////////////
+// Temperature and scattering functions
+////////////////////////////////////////////////////////////
+
 float basedLog(float base, float x) {
 	return log(x) / log(base);
 }
 
-float TemperatureSample(in PathTracingContext ptc,in float height)
+float TemperatureSample(in PathTracingContext ptc,in float3 p)
 {
-	return (-basedLog(ptc.Atmosphere.TempBase, height + ptc.Atmosphere.GroundLevelTemp) + ptc.Atmosphere.MinTemp) * 274.15f;
+	return p.y*p.y*p.y*p.y*p.y*p.y*p.y*p.y*p.y*p.y; //(-basedLog(ptc.Atmosphere.TempBase, height + ptc.Atmosphere.GroundLevelTemp) + ptc.Atmosphere.MinTemp) - 274.15f;
 }
 
 float TemperatureIOR(in float tmp1,in float tmp2)
@@ -185,17 +189,17 @@ float TemperatureIOR(in float tmp1,in float tmp2)
 	return 1 + 0.000292 * (tmp1/tmp2);
 }
 
-float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
-	float delta = distance(p1,p2);
+float3 TemperatureNormal(in PathTracingContext ptc,float3 vectorDirection,in float3 p1,in float3 p2){
+	float delta  = 10;
 	// Sample the refractive index at nearby points for finite difference computation
-	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at point P1
-	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y));  // Sample at a point offset by delta in the x direction
+	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at point P1
+	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1 /*+ delta*/), TemperatureSample(ptc, p2));  // Sample at a point offset by delta in the x direction
 
-	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (y1)
-	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y + delta));  // Sample offset in the y direction
+	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (y1)
+	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1 + (0,delta,0)), TemperatureSample(ptc, p2 + (0,delta,0)));  // Sample offset in the y direction
 
-	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (z1)
-	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y + delta));  // Sample at a point offset by delta in the z direction
+	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (z1)
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2 /*+ delta*/));  // Sample at a point offset by delta in the z direction
 
 	// Compute finite differences (gradients)
 	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
@@ -203,7 +207,7 @@ float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
 	float gradient_z = (eta_z2 - eta_z1) / delta;  // Approximate gradient in z direction
 
 	// Combine to form the gradient vector (normal vector to the isosurface)
-	return normalize(float3(gradient_x, gradient_y, gradient_z));
+	return normalize(float3(0, 1, 0) - vectorDirection);
 }
 
 ////////////////////////////////////////////////////////////
@@ -600,9 +604,9 @@ bool Integrate(
 
 	 else // null event
 	 {
-	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.y),TemperatureSample(ptc, P1.y));  // Ratio of refractive indices (e.g., air to glass)
-	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
-	 		float3 refractedRay = refract(localWi.d, normal, eta);
+	 		float eta = TemperatureIOR(TemperatureSample(ptc, P0),TemperatureSample(ptc, P1));  // Ratio of refractive indices (e.g., air to glass)
+	 	 	float3 normal = TemperatureNormal(ptc,localWi.d,P0, P1);
+	 		float3 refractedRay = refract(localWi.d, normal ,2);
 	 		localWi.d = refractedRay;
 	 }
 	} while (!(eventScatter || eventAbsorb));
