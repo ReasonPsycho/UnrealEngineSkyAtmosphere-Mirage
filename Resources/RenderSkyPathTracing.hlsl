@@ -525,8 +525,9 @@ bool Integrate(
 		return false;
 	float tMax = length(P - P0);
 
-	if (ptc.singleScatteringRay)
+	if (ptc.singleScatteringRay) 
 	{
+		//TODO here add proper check for the ground notmcheat one
 		float2 pixPos = ptc.screenPixelPos;
 		float3 ClipSpace = float3((pixPos / float2(gResolution))*float2(2.0, -2.0) - float2(1.0, -1.0), 0.5);
 		ClipSpace.z = ViewDepthTexture[pixPos].r;
