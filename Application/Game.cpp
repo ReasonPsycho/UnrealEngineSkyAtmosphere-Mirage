@@ -507,7 +507,8 @@ void Game::allocateResolutionDependentResources(uint32 newWidth, uint32 newHeigh
 		pathTracingBufferDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;	// Could use 111110 if there is no count when used only for blur and accumulate
 		mPathTracingLuminanceBuffer = new Texture2D(pathTracingBufferDesc);
 		mPathTracingTransmittanceBuffer = new Texture2D(pathTracingBufferDesc);
-	}
+		mPathTracingDiffuseBuffer = new Texture2D(pathTracingBufferDesc);
+	}	
 	{
 		D3D11_TEXTURE2D_DESC FrameAtmosphereDesc = backBufferHdrDesc;
 		FrameAtmosphereDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -866,7 +867,7 @@ void Game::render()
 		ImGui::SliderFloat("RayScaleHeight", &RayleighScaleHeight, 0.5f, 20.0f);
 		ImGui::ColorEdit3("Ground albedo", &uiGroundAbledo.x);
 
-		ImGui::SliderFloat("TempBase", &TempBase, 0.5f, 0.9f, "%.5f", 0.1f);
+		ImGui::SliderFloat("TempBase", &TempBase, 0.0f, 100000.0f, "%.5f", 0.1f);
 		ImGui::SliderFloat("MinTemp", &MinTemp, -100.0f, 100.0f, "%.5f", 0.2f);
 		ImGui::SliderFloat("GroundLevelTemp", &GroundLevelTemp, -1000.0f, 1000.0f, "%.5f", 10.0f);
 
@@ -981,6 +982,7 @@ void Game::render()
 		{
 			context->ClearRenderTargetView(mPathTracingLuminanceBuffer->mRenderTargetView, &clearColor.r);
 			context->ClearRenderTargetView(mPathTracingTransmittanceBuffer->mRenderTargetView, &clearColor.r);
+			context->ClearRenderTargetView(mPathTracingDiffuseBuffer->mRenderTargetView, &clearColor.r);
 		}
 	}
 

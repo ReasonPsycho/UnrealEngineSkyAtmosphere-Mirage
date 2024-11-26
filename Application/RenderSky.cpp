@@ -156,9 +156,9 @@ void Game::renderPathTracing()
 		}
 		else
 		{
-			D3dRenderTargetView* const rtvs[2] = { mPathTracingLuminanceBuffer->mRenderTargetView, mPathTracingTransmittanceBuffer->mRenderTargetView };
-			context->OMSetRenderTargetsAndUnorderedAccessViews(2, rtvs, nullptr, 2, 2, uavs, uavInitCounts);
-			context->OMSetBlendState(BlendAddRGBA->mState, nullptr, 0xffffffff);
+		D3dRenderTargetView* const rtvs[3] = { mPathTracingLuminanceBuffer->mRenderTargetView, mPathTracingTransmittanceBuffer->mRenderTargetView ,mPathTracingDiffuseBuffer->mRenderTargetView};
+		context->OMSetRenderTargetsAndUnorderedAccessViews(3, rtvs, nullptr, 3, 2, uavs, uavInitCounts); //changed UAVStartSlot from 2 to 3
+		context->OMSetBlendState(BlendAddRGBA->mState, nullptr, 0xffffffff);
 		}
 		context->OMSetDepthStencilState(mDisabledDepthStencilState->mState, 0);
 
@@ -170,12 +170,19 @@ void Game::renderPathTracing()
 		mScreenVertexShader->setShader(*context);
 		RenderPathTracingPS[currentTransPermutation][GroundGiPermutation][currentShadowPermutation ? 1 : 0][currentMultipleScatteringFactor>0.0f ? 1 : 0]->setShader(*context);
 
+
 		context->VSSetConstantBuffers(0, 1, &mConstantBuffer->mBuffer);
 		context->PSSetConstantBuffers(0, 1, &mConstantBuffer->mBuffer);
 		context->PSSetConstantBuffers(1, 1, &SkyAtmosphereBuffer->mBuffer);
 
 		context->PSSetSamplers(0, 1, &SamplerLinear->mSampler);
 		context->PSSetSamplers(1, 1, &SamplerShadow->mSampler);
+
+		context->VSSetSamplers(0, 1, &SamplerLinear->mSampler);
+		context->VSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
+		context->PSSetSamplers(0, 1, &SamplerLinear->mSampler);
+		context->PSSetSamplers(1, 1, &SamplerShadow->mSampler);
+		context->PSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
 
 		context->PSSetShaderResources(1, 1, &mBlueNoise2dTex->mShaderResourceView);
 		context->PSSetShaderResources(2, 1, &mTransmittanceTex->mShaderResourceView);
@@ -270,9 +277,11 @@ void Game::renderRayMarching()
 void Game::RenderSkyAtmosphereOverOpaque()
 {
 	const D3dViewport& backBufferViewport = g_dx11Device->getBackBufferViewport();
+
 	D3dRenderContext* context = g_dx11Device->getDeviceContext();
 	D3dRenderTargetView* backBuffer = g_dx11Device->getBackBufferRT();
 
+	mConstantBufferCPU.gTerrainResolution = TerrainResolution;
 	mConstantBufferCPU.gResolution[0] = uint32(backBufferViewport.Width);
 	mConstantBufferCPU.gResolution[1] = uint32(backBufferViewport.Height);
 	mConstantBuffer->update(mConstantBufferCPU);
@@ -298,6 +307,8 @@ void Game::RenderSkyAtmosphereOverOpaque()
 		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context->IASetInputLayout(nullptr);
 
+
+
 		// Final view
 		mScreenVertexShader->setShader(*context);
 		mApplySkyAtmosphereShader->setShader(*context);
@@ -309,6 +320,7 @@ void Game::RenderSkyAtmosphereOverOpaque()
 
 		context->PSSetShaderResources(2, 1, &mPathTracingLuminanceBuffer->mShaderResourceView);
 		context->PSSetShaderResources(3, 1, &mPathTracingTransmittanceBuffer->mShaderResourceView);
+		context->PSSetShaderResources(4, 1, &mPathTracingDiffuseBuffer->mShaderResourceView);
 
 		context->Draw(3, 0);
 		g_dx11Device->setNullPsResources(context);

@@ -1,8 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "./Resources/RenderSkyCommon.hlsl"
+//#include "./Terrain.hlsl"
 
+Texture2D<float4>  TerrainHeightmapTex				: register(t0);
 
+bool IsBelowTerrain(in float3 vectorPos)
+{
+	float3 actualPos = float3(vectorPos.x,vectorPos.y,vectorPos.z);
+	const float maxTerrainHeight = 6355.0f;
+	const float globalTerrainWidth = 50.0f;
+	const float textureTerrainWidth = 1.0f;
+
+	if (abs(actualPos.x +  45) >= globalTerrainWidth  || abs(actualPos.y- 40) >= globalTerrainWidth)
+		return false;
+   
+	float2 normalizedPos = float2(
+		(actualPos.x + globalTerrainWidth) / (2 * globalTerrainWidth),
+		(actualPos.y + globalTerrainWidth) / (2 * globalTerrainWidth));
+
+	float2 localUvs = float2(
+		normalizedPos.x * textureTerrainWidth,
+		normalizedPos.y * textureTerrainWidth
+	);
+		
+//float HeightAccum = TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2(0.0f, 0.0f), 0).r;
+//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( offset, 0.0f), 0).r;
+//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2(-offset, 0.0f), 0).r;
+//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( 0.0f, offset), 0).r;
+//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( 0.0f,-offset), 0).r;
+//	const float height = (HeightAccum / 5) * 10 + maxTerrainHeight;
+
+	const float height = TerrainHeightmapTex.SampleLevel(samplerLinearClamp, localUvs , 0).r * 20 + maxTerrainHeight;
+	   
+	//return false;
+	return height > actualPos.z;
+}
 
 ////////////////////////////////////////////////////////////
 // Path tracing context used by the integrators
@@ -524,11 +557,11 @@ bool Integrate(
 	if (!getNearestIntersection(ptc, createRay(P0, localWi.d), P))
 		return false;
 	float tMax = length(P - P0);
-
-	if (ptc.singleScatteringRay) 
-	{
-		//TODO here add proper check for the ground notmcheat one
-		float2 pixPos = ptc.screenPixelPos;
+	
+	/*
+	if (ptc.singleScatteringRay) //Orginal collision with the ground
+	{		
+		float2 pixPos = ptc.screenPixelPos; 
 		float3 ClipSpace = float3((pixPos / float2(gResolution))*float2(2.0, -2.0) - float2(1.0, -1.0), 0.5);
 		ClipSpace.z = ViewDepthTexture[pixPos].r;
 		if (ClipSpace.z < 1.0f)
@@ -545,6 +578,8 @@ bool Integrate(
 			}
 		}
 	}
+	*/
+	 
 
 	bool eventScatter = false;
 	bool eventAbsorb = false;
@@ -558,19 +593,24 @@ bool Integrate(
 	{
 		if (ptc.extinctionMajorant == 0.0) break; // cannot importance sample, so stop right away
 
-
-		float zeta = random01(ptc);
-		t = t + infiniteTransmittanceIS(ptc.extinctionMajorant, zeta); // unbounded domain proportional with PDF to the transmittance
-
-		if (t >= tMax)
+		if (t >= tMax || ptc.opaqueHit)
 		{
 			break; // Did not terminate in the volume
 		}
+
+		float zeta = random01(ptc);
+		t = t + infiniteTransmittanceIS(ptc.extinctionMajorant, zeta); // unbounded domain proportional with PDF to the transmittance
 
 		// Update the shading context
 		float3 P1 = P0 + t * localWi.d;
 		float3 orginalPoint = ptc.P;
 		ptc.P = P1;
+
+		if (ptc.singleScatteringRay) 
+		{
+			//TODO here add proper check for the ground notmcheat one
+			ptc.opaqueHit = IsBelowTerrain(ptc.P);
+		}
 
 #if DEBUGENABLED // Sample point
 		if (ptc.debugEnabled) { addGpuDebugCross(ToDebugWorld + ptc.P, float3(0.5, 1.0, 1.0), 0.5); }
@@ -723,7 +763,7 @@ float LightIntegratorInner(
 		}
 
 		// Handle collision with opaque
-		if (ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND && hasScattered) // ptc.hasScattered is checked to avoid colored ground
+		if ((ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND) && hasScattered) // ptc.hasScattered is checked to avoid colored ground
 		{
 			// Offset position to be always be the volume 
 			float h = length(ray.o);
@@ -922,8 +962,9 @@ float LightIntegratorInner(
 	{
 		L += throughput * dot(ptc.wavelengthMask, GetSunLuminance(camPos, WorldDir, ptc.Atmosphere.BottomRadius));
 	}
-
+	
 	ptc.transmittance = !hasScattered ? throughput : 0.0f;
+	
 	return L;
 }
 
@@ -934,12 +975,35 @@ float LightIntegratorInner(
 ////////////////////////////////////////////////////////////////////////////////
 
 
+float4 float3ToRGBA(float3 wavelengthWeight) {
+  float4 color;
+
+  color.r = saturate(wavelengthWeight.x) * 255;
+  color.g = saturate(wavelengthWeight.y) * 255;
+  color.b = saturate(wavelengthWeight.z) * 255;
+  color.a = 255;
+
+  return color;
+}
+
+float3 WavelengthToRGB(float lambda)
+{
+	// These coefficients are simply obtained by performing a curve fitting on experimental data
+	// which explains the color response of the human eye to different wavelengths.
+	// They might not be the optimal values.
+	float R = ((lambda >= 400.0 && lambda < 510.0) ? (-lambda + 510.0) / (510.0 - 400.0) : (lambda < 400.0 || lambda >= 640.0) ? 0.0 : (lambda - 510.0) / (640.0 - 510.0));  
+	float G = ((lambda >= 510.0 && lambda < 580.0) ? (580.0 - lambda) / (580.0 - 510.0) : (lambda < 510.0 || lambda >= 645.0) ? 0.0 : (lambda - 510.0) / (645.0 - 510.0));
+	float B = ((lambda >= 645.0 && lambda <= 780.0) ? (780.0 - lambda) / (780.0 - 645.0) : (lambda < 400.0 || lambda >= 645.0) ? 0.0 : (645.0 - lambda) / (645.0 - 400.0));
+
+	return float3(R,G,B);
+}
 
 struct PixelOutputStruct
 {
 	float4 Luminance		: SV_TARGET0;
 #if GAMEMODE_ENABLED==0
 	float4 Transmittance	: SV_TARGET1;
+	float4 Diffuse          : SV_TARGET2; 
 #endif
 };
 PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
@@ -1003,9 +1067,12 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 
 	float wavelengthPdf = 1.0 / 3.0;
 	const float3 wavelengthWeight = ptc.wavelengthMask / wavelengthPdf;
-
+	//float4 diffuse = float3ToRGBA(wavelengthWeight);
 	OutputLuminance = LightIntegratorInner(Input, ptc);
 
+    float albedo = saturate(dot(ptc.Atmosphere.GroundAlbedo, ptc.wavelengthMask));
+	const float DiffuseEval = albedo * (1.0f / PI);
+	float3 rgbDiffuse = WavelengthToRGB(DiffuseEval);
 	PixelOutputStruct output;
 
 	//if (pixPos.x < 512 && pixPos.y < 512)
@@ -1014,12 +1081,13 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 	//	output.Transmittance = float4(0,0,0,1);
 	//	return output;
 	//}
-
+	
 #if GAMEMODE_ENABLED
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, dot(ptc.transmittance * wavelengthWeight, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)));
 #else
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, 1.0f);
 	output.Transmittance = float4(ptc.transmittance * wavelengthWeight, 1.0f);
+	output.Diffuse = ptc.opaqueHit ? float4(cos(ptc.P.x/5),cos(ptc.P.y/5),cos(ptc.P.z/5),1.0f) :  float4(0.0f,0.0f, 0.0f, 1.0f);
 #endif
 	return output;
 }

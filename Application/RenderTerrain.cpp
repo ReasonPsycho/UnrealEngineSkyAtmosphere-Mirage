@@ -8,7 +8,6 @@
 #include <imgui.h>
 
 // This is the resolution of the terrain. Render tile by tile using instancing... Bad but it works and this is not important for what I need to do.
-const static uint32 TerrainResolution = 512;
 
 void Game::renderTerrain()
 {

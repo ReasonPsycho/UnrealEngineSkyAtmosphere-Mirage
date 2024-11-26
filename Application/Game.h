@@ -11,6 +11,8 @@
 #include "GpuDebugRenderer.h"
 #include <functional>
 
+const static uint32 TerrainResolution = 512;
+
 struct CaptureEvent
 {
 	bool setupdone = false;
@@ -115,6 +117,7 @@ private:
 
 	Texture2D* mPathTracingLuminanceBuffer;
 	Texture2D* mPathTracingTransmittanceBuffer;
+	Texture2D* mPathTracingDiffuseBuffer;
 
 	Texture2D* mFrameAtmosphereBuffer;
 

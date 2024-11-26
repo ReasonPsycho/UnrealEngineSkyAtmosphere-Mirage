@@ -6,6 +6,7 @@
 
 Texture2D<float4> PathtracingLuminanceTexture				: register(t2);
 Texture2D<float4> PathtracingTransmittanceTexture			: register(t3);
+Texture2D<float4> PathtracingDiffuseTexture			        : register(t4);
 
 float sRGB(float x)
 {
@@ -36,13 +37,15 @@ PixelOutputStruct ApplySkyAtmospherePS(VertexOutput input)
 
 	float4 PathtracingLuminance		= PathtracingLuminanceTexture.Load(uint3(texCoord, 0));
 	float4 PathtracingTransmittance	= PathtracingTransmittanceTexture.Load(uint3(texCoord, 0));
+	float4 PathtracingDiffuse	= PathtracingDiffuseTexture.Load(uint3(texCoord, 0));
 
 	PathtracingLuminance = PathtracingLuminance.w > 0.0 ? PathtracingLuminance / PathtracingLuminance.w : float4(0.0, 0.0, 0.0, 1.0);
 	PathtracingTransmittance = PathtracingTransmittance.w > 0.0 ? PathtracingTransmittance / PathtracingTransmittance.w : float4(0.0, 0.0, 0.0, 1.0);
+	PathtracingDiffuse = PathtracingDiffuse.w > 0.0 ? PathtracingDiffuse / PathtracingDiffuse.w : float4(0.0, 0.0, 0.0, 1.0);
 
 	PixelOutputStruct output;
-	output.HdrBuffer = PathtracingLuminance;
-	output.Transmittance = PathtracingTransmittance;
+	output.HdrBuffer = PathtracingLuminance + PathtracingDiffuse ;
+	output.Transmittance = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	return output;
 }
 
