@@ -45,7 +45,7 @@ PixelOutputStruct ApplySkyAtmospherePS(VertexOutput input)
 
 	PixelOutputStruct output;
 	output.HdrBuffer = PathtracingLuminance + PathtracingDiffuse ;
-	output.Transmittance = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	output.Transmittance = PathtracingTransmittance;
 	return output;
 }
 

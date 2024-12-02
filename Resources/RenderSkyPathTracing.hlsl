@@ -8,7 +8,7 @@ Texture2D<float4>  TerrainHeightmapTex				: register(t0);
 bool IsBelowTerrain(in float3 vectorPos)
 {
 	float3 actualPos = float3(vectorPos.x,vectorPos.y,vectorPos.z);
-	const float maxTerrainHeight = 6355.0f;
+	const float maxTerrainHeight = 6360.0f;
 	const float globalTerrainWidth = 50.0f;
 	const float textureTerrainWidth = 1.0f;
 
@@ -16,8 +16,8 @@ bool IsBelowTerrain(in float3 vectorPos)
 		return false;
    
 	float2 normalizedPos = float2(
-		(actualPos.x + globalTerrainWidth) / (2 * globalTerrainWidth),
-		(actualPos.y + globalTerrainWidth) / (2 * globalTerrainWidth));
+		(-actualPos.x + globalTerrainWidth) / (2 * globalTerrainWidth),
+		(-actualPos.y + globalTerrainWidth) / (2 * globalTerrainWidth));
 
 	float2 localUvs = float2(
 		normalizedPos.x * textureTerrainWidth,
@@ -34,7 +34,7 @@ bool IsBelowTerrain(in float3 vectorPos)
 	const float height = TerrainHeightmapTex.SampleLevel(samplerLinearClamp, localUvs , 0).r * 20 + maxTerrainHeight;
 	   
 	//return false;
-	return height > actualPos.z;
+	return length(height - actualPos.z) < 1 ;
 }
 
 ////////////////////////////////////////////////////////////
@@ -608,7 +608,6 @@ bool Integrate(
 
 		if (ptc.singleScatteringRay) 
 		{
-			//TODO here add proper check for the ground notmcheat one
 			ptc.opaqueHit = IsBelowTerrain(ptc.P);
 		}
 
@@ -641,10 +640,10 @@ bool Integrate(
 
 	 else // null event
 	 {
-	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.y),TemperatureSample(ptc, P1.y));  // Ratio of refractive indices (e.g., air to glass)
-	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
-	 		float3 refractedRay = refract(localWi.d, normal, eta);
-	 		localWi.d = refractedRay;
+	 	//	float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.y),TemperatureSample(ptc, P1.y));  // Ratio of refractive indices (e.g., air to glass)
+	 	// 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
+	 	//	float3 refractedRay = refract(localWi.d, normal, eta);
+	 	//	localWi.d = refractedRay;
 	 }
 	} while (!(eventScatter || eventAbsorb));
 
@@ -763,7 +762,7 @@ float LightIntegratorInner(
 		}
 
 		// Handle collision with opaque
-		if ((ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND) && hasScattered) // ptc.hasScattered is checked to avoid colored ground
+		if ((ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND || ptc.opaqueHit) && hasScattered) // ptc.hasScattered is checked to avoid colored ground
 		{
 			// Offset position to be always be the volume 
 			float h = length(ray.o);
@@ -986,16 +985,58 @@ float4 float3ToRGBA(float3 wavelengthWeight) {
   return color;
 }
 
-float3 WavelengthToRGB(float lambda)
-{
-	// These coefficients are simply obtained by performing a curve fitting on experimental data
-	// which explains the color response of the human eye to different wavelengths.
-	// They might not be the optimal values.
-	float R = ((lambda >= 400.0 && lambda < 510.0) ? (-lambda + 510.0) / (510.0 - 400.0) : (lambda < 400.0 || lambda >= 640.0) ? 0.0 : (lambda - 510.0) / (640.0 - 510.0));  
-	float G = ((lambda >= 510.0 && lambda < 580.0) ? (580.0 - lambda) / (580.0 - 510.0) : (lambda < 510.0 || lambda >= 645.0) ? 0.0 : (lambda - 510.0) / (645.0 - 510.0));
-	float B = ((lambda >= 645.0 && lambda <= 780.0) ? (780.0 - lambda) / (780.0 - 645.0) : (lambda < 400.0 || lambda >= 645.0) ? 0.0 : (645.0 - lambda) / (645.0 - 400.0));
+float4 WaveLengthToRGB(float Wavelength) {
+	float Red, Green, Blue;
+	float factor;
 
-	return float3(R,G,B);
+	if((Wavelength >= 380) && (Wavelength < 440)) {
+		Red = -(Wavelength - 440) / (440 - 380);
+		Green = 0.0;
+		Blue = 1.0;
+	} else if((Wavelength >= 440) && (Wavelength < 490)) {
+		Red = 0.0;
+		Green = (Wavelength - 440) / (490 - 440);
+		Blue = 1.0;
+	} else if((Wavelength >= 490) && (Wavelength < 510)) {
+		Red = 0.0;
+		Green = 1.0;
+		Blue = -(Wavelength - 510) / (510 - 490);
+	} else if((Wavelength >= 510) && (Wavelength < 580)) {
+		Red = (Wavelength - 510) / (580 - 510);
+		Green = 1.0;
+		Blue = 0.0;
+	} else if((Wavelength >= 580) && (Wavelength < 645)) {
+		Red = 1.0;
+		Green = -(Wavelength - 645) / (645 - 580);
+		Blue = 0.0;
+	} else if((Wavelength >= 645) && (Wavelength < 781)) {
+		Red = 1.0;
+		Green = 0.0;
+		Blue = 0.0;
+	} else {
+		Red = 0.0;
+		Green = 0.0;
+		Blue = 0.0;
+	}
+	// Let the intensity fall off near the vision limits
+	if((Wavelength >= 380) && (Wavelength < 420)) {
+		factor = 0.3 + 0.7 * (Wavelength - 380) / (420 - 380);
+	} else if((Wavelength >= 420) && (Wavelength < 701)) {
+		factor = 1.0;
+	} else if((Wavelength >= 701) && (Wavelength < 781)) {
+		factor = 0.3 + 0.7 * (780 - Wavelength) / (780 - 700);
+	} else {
+		factor = 0.0;
+	}
+
+	const float IntensityMax = 1.0;
+	const float Gamma = 0.8;
+	// Don't want 0^x = 1 for x <> 0
+	float RedIntensity = Red == 0.0 ? 0 : saturate(IntensityMax * pow(Red * factor, Gamma));
+	float GreenIntensity = Green == 0.0 ? 0 : saturate(IntensityMax * pow(Green * factor, Gamma));
+	float BlueIntensity = Blue == 0.0 ? 0 : saturate(IntensityMax * pow(Blue * factor, Gamma));
+
+	return float4(RedIntensity, GreenIntensity, BlueIntensity, 1.0);
 }
 
 struct PixelOutputStruct
@@ -1064,15 +1105,19 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 		ptc.scatteringMajorant = ScatteringMajorant.b;
 		ptc.wavelengthMask = float3(0.0, 0.0, 1.0);
 	}
+	
+	float albedo = ptc.Atmosphere.GroundAlbedo;
 
+	
 	float wavelengthPdf = 1.0 / 3.0;
 	const float3 wavelengthWeight = ptc.wavelengthMask / wavelengthPdf;
-	//float4 diffuse = float3ToRGBA(wavelengthWeight);
+	float4 diffuse = float3ToRGBA(wavelengthWeight) * albedo;
 	OutputLuminance = LightIntegratorInner(Input, ptc);
 
-    float albedo = saturate(dot(ptc.Atmosphere.GroundAlbedo, ptc.wavelengthMask));
+
+
 	const float DiffuseEval = albedo * (1.0f / PI);
-	float3 rgbDiffuse = WavelengthToRGB(DiffuseEval);
+	float3 rgbDiffuse = WaveLengthToRGB(DiffuseEval);
 	PixelOutputStruct output;
 
 	//if (pixPos.x < 512 && pixPos.y < 512)
@@ -1087,7 +1132,7 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 #else
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, 1.0f);
 	output.Transmittance = float4(ptc.transmittance * wavelengthWeight, 1.0f);
-	output.Diffuse = ptc.opaqueHit ? float4(cos(ptc.P.x/5),cos(ptc.P.y/5),cos(ptc.P.z/5),1.0f) :  float4(0.0f,0.0f, 0.0f, 1.0f);
+	output.Diffuse = ptc.opaqueHit ? float4(DiffuseEval,DiffuseEval,DiffuseEval,1.0f) :  float4(0.0f,0.0f, 0.0f, 1.0f);
 #endif
 	return output;
 }
