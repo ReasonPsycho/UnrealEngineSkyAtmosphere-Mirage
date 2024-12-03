@@ -210,7 +210,7 @@ float basedLog(float base, float x) {
 
 float TemperatureSample(in PathTracingContext ptc,in float height)
 {
-	return (-basedLog(ptc.Atmosphere.TempBase, height + ptc.Atmosphere.GroundLevelTemp) + ptc.Atmosphere.MinTemp) * 274.15f;
+	return (-basedLog(ptc.Atmosphere.TempBase, height - 6360) + ptc.Atmosphere.MinTemp) * 274.15f;
 }
 
 float TemperatureIOR(in float tmp1,in float tmp2)
@@ -221,14 +221,14 @@ float TemperatureIOR(in float tmp1,in float tmp2)
 float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
 	float delta = distance(p1,p2);
 	// Sample the refractive index at nearby points for finite difference computation
-	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at point P1
-	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y));  // Sample at a point offset by delta in the x direction
+	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at point P1
+	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1.z + delta), TemperatureSample(ptc, p2.z));  // Sample at a point offset by delta in the x direction
 
-	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (y1)
-	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1.y + delta), TemperatureSample(ptc, p2.y + delta));  // Sample offset in the y direction
+	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at original point (y1)
+	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1.z + delta), TemperatureSample(ptc, p2.z + delta));  // Sample offset in the y direction
 
-	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y));  // Sample at original point (z1)
-	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1.y), TemperatureSample(ptc, p2.y + delta));  // Sample at a point offset by delta in the z direction
+	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at original point (z1)
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z + delta));  // Sample at a point offset by delta in the z direction
 
 	// Compute finite differences (gradients)
 	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
@@ -640,10 +640,10 @@ bool Integrate(
 
 	 else // null event
 	 {
-	 	//	float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.y),TemperatureSample(ptc, P1.y));  // Ratio of refractive indices (e.g., air to glass)
-	 	// 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
-	 	//	float3 refractedRay = refract(localWi.d, normal, eta);
-	 	//	localWi.d = refractedRay;
+	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.z),TemperatureSample(ptc, P1.z));  // Ratio of refractive indices (e.g., air to glass)
+	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
+	 		float3 refractedRay = refract(localWi.d, -localWi.d +normal, eta);
+	 		localWi.d = refractedRay;
 	 }
 	} while (!(eventScatter || eventAbsorb));
 
@@ -1106,7 +1106,7 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 		ptc.wavelengthMask = float3(0.0, 0.0, 1.0);
 	}
 	
-	float albedo = ptc.Atmosphere.GroundAlbedo;
+	float albedo  =ptc.Atmosphere.GroundAlbedo;
 
 	
 	float wavelengthPdf = 1.0 / 3.0;
@@ -1131,7 +1131,7 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, dot(ptc.transmittance * wavelengthWeight, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)));
 #else
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, 1.0f);
-	output.Transmittance = float4(ptc.transmittance * wavelengthWeight, 1.0f);
+	output.Transmittance = ptc.opaqueHit ? float4(1.0f,1.0f,1.0f,1.0f) :  float4(0.0f,0.0f, 0.0f, 0.0f);
 	output.Diffuse = ptc.opaqueHit ? float4(DiffuseEval,DiffuseEval,DiffuseEval,1.0f) :  float4(0.0f,0.0f, 0.0f, 1.0f);
 #endif
 	return output;
