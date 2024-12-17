@@ -44,8 +44,8 @@ PixelOutputStruct ApplySkyAtmospherePS(VertexOutput input)
 	PathtracingDiffuse = PathtracingDiffuse.w > 0.0 ? PathtracingDiffuse / PathtracingDiffuse.w : float4(0.0, 0.0, 0.0, 0.0);
 	float4 blendedColor = float4(PathtracingTransmittance.w * PathtracingLuminance.xyz + (1.0 - PathtracingTransmittance.w) * PathtracingDiffuse.xyz, 1.0);
 	PixelOutputStruct output;
-	output.HdrBuffer = PathtracingDiffuse;
-	output.Transmittance = PathtracingTransmittance;
+	output.HdrBuffer = PathtracingTransmittance.x > 0.0f ? PathtracingDiffuse:  PathtracingLuminance;
+	output.Transmittance = float4(0,0,0,0);
 	return output;
 }
 

@@ -1,40 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "./Resources/RenderSkyCommon.hlsl"
-//#include "./Terrain.hlsl"
+
+////////////////////////////////////////////////////////////
+// Sampling terrain
+////////////////////////////////////////////////////////////
 
 Texture2D<float4>  TerrainHeightmapTex				: register(t0);
+Texture2D<float4>  TerrainNormalmapTex				: register(t9);
 
-bool IsBelowTerrain(in float3 vectorPos)
+bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
 {
 	float3 actualPos = float3(vectorPos.x,vectorPos.y,vectorPos.z);
 	const float maxTerrainHeight = 6360.0f;
-	const float globalTerrainWidth = 50.0f;
+	const float globalTerrainWidth = 100.0f;
 	const float textureTerrainWidth = 1.0f;
-
-	if (abs(actualPos.x +  45) >= globalTerrainWidth  || abs(actualPos.y- 40) >= globalTerrainWidth)
+	const float offsetX = 45.0f; 
+	const float offsetY = -40.0f;
+	if (abs(actualPos.x +  offsetX) >= globalTerrainWidth  || abs(actualPos.y+ offsetY) >= globalTerrainWidth)
 		return false;
    
+	// Normalize world position to UV space
 	float2 normalizedPos = float2(
-		(-actualPos.x + globalTerrainWidth) / (2 * globalTerrainWidth),
-		(-actualPos.y + globalTerrainWidth) / (2 * globalTerrainWidth));
+	((actualPos.x + offsetX) + globalTerrainWidth) / (2 * globalTerrainWidth),
+	((actualPos.y + offsetY) + globalTerrainWidth) / (2 * globalTerrainWidth));
 
 	float2 localUvs = float2(
 		normalizedPos.x * textureTerrainWidth,
 		normalizedPos.y * textureTerrainWidth
 	);
-		
-//float HeightAccum = TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2(0.0f, 0.0f), 0).r;
-//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( offset, 0.0f), 0).r;
-//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2(-offset, 0.0f), 0).r;
-//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( 0.0f, offset), 0).r;
-//	HeightAccum+= TerrainHeightmapTex.SampleLevel(samplerLinearClamp, Uvs + float2( 0.0f,-offset), 0).r;
-//	const float height = (HeightAccum / 5) * 10 + maxTerrainHeight;
 
+	// Sample the height at the terrain location
 	const float height = TerrainHeightmapTex.SampleLevel(samplerLinearClamp, localUvs , 0).r * 20 + maxTerrainHeight;
-	   
-	//return false;
-	return length(height - actualPos.z) < 1 ;
+
+	// Compute terrain normal using the helper function
+	terrainNormal = TerrainNormalmapTex.SampleLevel(samplerLinearClamp, localUvs , 0).rgb;
+   
+	return length(height - actualPos.z) < 1;
+}
+
+float light_radiance(float wavelength) {
+	// Blackbody radiator at 5800 K (simplified exponential-like behavior).
+	if (wavelength < 500.0f) return 1.0f; // Blue light
+	if (wavelength < 600.0f) return 0.9f; // Green light
+	return 0.8f;                          // Red light
 }
 
 ////////////////////////////////////////////////////////////
@@ -50,6 +59,7 @@ struct PathTracingContext
 	Ray ray;
 	float3 P;
 	float3 V;	// not always the view: sometimes it is the opposite of ray.d when one bounce has happened.
+	float3 N;	// normal of the opaque ground
 
 	float scatteringMajorant;
 	float extinctionMajorant;
@@ -208,27 +218,29 @@ float basedLog(float base, float x) {
 	return log(x) / log(base);
 }
 
-float TemperatureSample(in PathTracingContext ptc,in float height)
+float TemperatureSample(in PathTracingContext ptc,in float3 pos)
 {
-	return (-basedLog(ptc.Atmosphere.TempBase, height - 6360) + ptc.Atmosphere.MinTemp) * 274.15f;
+	float t = saturate((pos.z - 6360.0f) / (6361.0f - 6350.0f));
+	return lerp(21.0f, 100.0f, t);
+	//return  (-basedLog(ptc.Atmosphere.TempBase, length(pos) - 6360) + ptc.Atmosphere.MinTemp) * 274.15f;
 }
 
-float TemperatureIOR(in float tmp1,in float tmp2)
+float TemperatureIOR(in float tmp1, in float tmp2)
 {
-	return 1 + 0.000292 * (tmp1/tmp2);
+	return 1.0 + 0.000292 * saturate(tmp1 / max(tmp2, 0.001)); // Avoid division by near-zero
 }
 
 float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
-	float delta = distance(p1,p2);
+	float delta = distance(p1, p2);
 	// Sample the refractive index at nearby points for finite difference computation
-	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at point P1
-	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1.z + delta), TemperatureSample(ptc, p2.z));  // Sample at a point offset by delta in the x direction
+	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at point P1
+	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(delta, 0, 0)), TemperatureSample(ptc, p2+ float3(delta, 0, 0)));  // Sample at a point offset by delta in the x direction
 
-	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at original point (y1)
-	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1.z + delta), TemperatureSample(ptc, p2.z + delta));  // Sample offset in the y direction
+	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (y1)
+	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, delta, 0)), TemperatureSample(ptc, p2 + float3(0, delta, 0)));  // Sample offset in the y direction
 
-	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z));  // Sample at original point (z1)
-	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1.z), TemperatureSample(ptc, p2.z + delta));  // Sample at a point offset by delta in the z direction
+	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (z1)
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, 0, delta)), TemperatureSample(ptc, p2 + float3(0, 0, delta)));  // Sample at a point offset by delta in the z direction
 
 	// Compute finite differences (gradients)
 	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
@@ -390,7 +402,6 @@ void lightGenerateSample(inout PathTracingContext ptc, out float3 direction, out
 
 	beamTransmittance = TransmittanceEstimation(ptc, direction);// Compute transmitance through atmosphere
 }
-
 
 
 ////////////////////////////////////////////////////////////
@@ -608,7 +619,7 @@ bool Integrate(
 
 		if (ptc.singleScatteringRay) 
 		{
-			ptc.opaqueHit = IsBelowTerrain(ptc.P);
+			ptc.opaqueHit = IsBelowTerrain(ptc.P,ptc.N);
 		}
 
 #if DEBUGENABLED // Sample point
@@ -640,10 +651,11 @@ bool Integrate(
 
 	 else // null event
 	 {
-	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint.z),TemperatureSample(ptc, P1.z));  // Ratio of refractive indices (e.g., air to glass)
-	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint.y, P1.y);
-	 		float3 refractedRay = refract(localWi.d, -localWi.d +normal, eta);
+	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint),TemperatureSample(ptc, P1));  // Ratio of refractive indices (e.g., air to glass)
+	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint, P1);
+	 		float3 refractedRay = refract(localWi.d, normalize(-localWi.d +normal * 1000 ), eta);
 	 		localWi.d = refractedRay;
+	 	//addGpuDebugLine(ptc.P, ptc.P + refractedRay * 10.0f, float3(1.0f, 0.0f, 0.0f));
 	 }
 	} while (!(eventScatter || eventAbsorb));
 
@@ -705,7 +717,7 @@ bool Integrate(
 
 // This is the volume path tracer core loop. It was tested on other volumetric data and compared against PBRT and Mitsuba (e.g. https://twitter.com/SebHillaire/status/1076144032961757185 or https://twitter.com/SebHillaire/status/1073568200762245122)
 // It could be improved by really following the Radiance transfert Equation path integral as a loop for each event.
-float LightIntegratorInner(
+float2 LightIntegratorInner(
 	VertexOutput Input,
 	inout PathTracingContext ptc)
 {
@@ -721,6 +733,8 @@ float LightIntegratorInner(
 	float3 camPos = camera + float3(0, 0, earthR);
 	float3 sunDir = sun_direction;
 
+
+	float DiffuseReturnValue = 0.0f;
 	//////////
 
 	float L = 0.0f;
@@ -754,8 +768,8 @@ float LightIntegratorInner(
 	int step = 0; 
 	while (step < gScatteringMaxPathDepth && throughput>0.0)
 	{
-#if GROUND_GI_ENABLED
-		if (ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND && !hasScattered) // ptc.hasScattered is checked to avoid colored ground
+#if true //  TODO add again GROUND_GI_ENABLED and edge case opaque
+		if ((ptc.lastSurfaceIntersection == D_INTERSECTION_GROUND || ptc.opaqueHit) && !hasScattered) // ptc.hasScattered is checked to avoid colored ground
 		{
 			// If ground is directly visible as the first intersection (has not scattered before) then we should stop tracing for the ground to not show up.
 			break;
@@ -905,10 +919,25 @@ float LightIntegratorInner(
 				L += throughput * Lv;
 				throughput *= transmittance;
 
+				if (ptc.opaqueHit)
+				{
+					//diffuse
+					float NdotL = max(dot(ptc.N, sunDir), 0.0f); // Lambertian diffuse part
+					//float viewHeight = length(ptc.P);
+					//const float3 UpVector = ptc.P / viewHeight;
+					//const float NdotL = saturate(dot(ptc.N, sunDir));
+
+					const float albedo = 0.5f;
+					float LightRadiance =  1.0f; //light_radiance();  // Wavelength-based light radiance
+					const float DiffuseEval = albedo * (1.0f / PI);
+					DiffuseReturnValue = albedo * LightRadiance * NdotL ;
+				}
+	
+
 				hasScattered = true;
 				break;
 #else
-				// Default lighting code
+
 				Lv += lightL * bsdfL * beamTransmittance / (lightPdf);
 				L += weight * throughput * Lv * transmittance;
 				throughput *= transmittance;
@@ -964,7 +993,7 @@ float LightIntegratorInner(
 	
 	ptc.transmittance = !hasScattered ? throughput : 0.0f;
 	
-	return L;
+	return float2(L,DiffuseReturnValue);
 }
 
 
@@ -973,17 +1002,6 @@ float LightIntegratorInner(
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-float4 float3ToRGBA(float3 wavelengthWeight) {
-  float4 color;
-
-  color.r = saturate(wavelengthWeight.x) * 255;
-  color.g = saturate(wavelengthWeight.y) * 255;
-  color.b = saturate(wavelengthWeight.z) * 255;
-  color.a = 255;
-
-  return color;
-}
 
 float4 WaveLengthToRGB(float Wavelength) {
 	float Red, Green, Blue;
@@ -1053,7 +1071,7 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 
 	const float NumSample = 1.0f;
 	float3 OutputLuminance = 0.0f;
-
+	float3 OutputDiffuse = 0.0f;
 	float3 ScatteringMajorant = rayleigh_scattering + mie_scattering;
 	float3 ExtinctionMajorant = rayleigh_scattering + mie_extinction + absorption_extinction;
 
@@ -1106,18 +1124,16 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 		ptc.wavelengthMask = float3(0.0, 0.0, 1.0);
 	}
 	
-	float albedo  =ptc.Atmosphere.GroundAlbedo;
 
 	
 	float wavelengthPdf = 1.0 / 3.0;
 	const float3 wavelengthWeight = ptc.wavelengthMask / wavelengthPdf;
-	float4 diffuse = float3ToRGBA(wavelengthWeight) * albedo;
-	OutputLuminance = LightIntegratorInner(Input, ptc);
+	float2 result = LightIntegratorInner(Input, ptc);
+	OutputLuminance = result.x;
+	OutputDiffuse =  result.y;
 
-
-
-	const float DiffuseEval = albedo * (1.0f / PI);
-	float3 rgbDiffuse = WaveLengthToRGB(DiffuseEval);
+	float3 rgbDiffuse = OutputDiffuse; //  WaveLengthToRGB(OutputDiffuse);
+	
 	PixelOutputStruct output;
 
 	//if (pixPos.x < 512 && pixPos.y < 512)
@@ -1132,7 +1148,7 @@ PixelOutputStruct RenderPathTracingPS(VertexOutput Input)
 #else
 	output.Luminance = float4(OutputLuminance   * wavelengthWeight, 1.0f);
 	output.Transmittance = ptc.opaqueHit ? float4(1.0f,1.0f,1.0f,1.0f) :  float4(0.0f,0.0f, 0.0f, 0.0f);
-	output.Diffuse = ptc.opaqueHit ? float4(DiffuseEval,DiffuseEval,DiffuseEval,1.0f) :  float4(0.0f,0.0f, 0.0f, 1.0f);
+	output.Diffuse = float4(rgbDiffuse.x ,rgbDiffuse.y  ,rgbDiffuse.z ,1.0f);
 #endif
 	return output;
 }

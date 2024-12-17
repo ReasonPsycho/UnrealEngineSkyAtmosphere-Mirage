@@ -180,9 +180,11 @@ void Game::renderPathTracing()
 
 		context->VSSetSamplers(0, 1, &SamplerLinear->mSampler);
 		context->VSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
+		context->VSSetShaderResources(9, 1, &mTerrainNormalmapTex->mShaderResourceView);
 		context->PSSetSamplers(0, 1, &SamplerLinear->mSampler);
 		context->PSSetSamplers(1, 1, &SamplerShadow->mSampler);
 		context->PSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
+		context->PSSetShaderResources(9, 1, &mTerrainNormalmapTex->mShaderResourceView);
 
 		context->PSSetShaderResources(1, 1, &mBlueNoise2dTex->mShaderResourceView);
 		context->PSSetShaderResources(2, 1, &mTransmittanceTex->mShaderResourceView);

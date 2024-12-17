@@ -34,7 +34,7 @@ RWTexture2D<float4>  OutputTexture1						: register(u1);
 #define TRANSMITANCE_METHOD 2
 #endif
 #ifndef MULTISCATAPPROX_ENABLED 
-#define MULTISCATAPPROX_ENABLED 0 
+#define MULTISCATAPPROX_ENABLED 1 
 #endif
 #ifndef GAMEMODE_ENABLED 
 #define GAMEMODE_ENABLED 0 
