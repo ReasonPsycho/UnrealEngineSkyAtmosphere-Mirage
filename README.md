@@ -1,11 +1,15 @@
-# [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
+# Sky Atmosphere Rendering Technique with refraction
+
+In this github project I am adding refraction based on temperature of the attempt to replicate mirage.
+
+## Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
+
 
 This is the project accompanying the paper `A Scalable and Production Ready Sky and Atmosphere Rendering Technique` presented at [EGSR 2020](https://egsr2020.london/program/).
 It can be used to compare the new technique proposed in that paper to [Bruneton et al.](https://github.com/ebruneton/precomputed_atmospheric_scattering) as well as to a real-time path tracer.
 The path tracer is using a simple and less efficient noise because I was not sure I could share noise code I had before.
 The technique is used to render sky and atmosphere in [Unreal Engine](https://www.unrealengine.com).
 
-In this github project I am adding refraction based on temperature of the attempt to replicate mirage.
 
 Build the solution
 1. Update git submodules (run `git submodule update --init`)
