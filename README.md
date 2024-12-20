@@ -5,6 +5,8 @@ It can be used to compare the new technique proposed in that paper to [Bruneton 
 The path tracer is using a simple and less efficient noise because I was not sure I could share noise code I had before.
 The technique is used to render sky and atmosphere in [Unreal Engine](https://www.unrealengine.com).
 
+In this github project I am adding refraction based on temperature of the attempt to replicate mirage.
+
 Build the solution
 1. Update git submodules (run `git submodule update --init`)
 2. Open the solution 
