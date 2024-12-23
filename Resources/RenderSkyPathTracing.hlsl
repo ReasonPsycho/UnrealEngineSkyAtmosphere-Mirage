@@ -13,7 +13,7 @@ bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
 {
 	float3 actualPos = float3(vectorPos.x,vectorPos.y,vectorPos.z);
 	const float maxTerrainHeight = 6360.0f;
-	const float globalTerrainWidth = 100.0f;
+	const float globalTerrainWidth = 50.0f;
 	const float textureTerrainWidth = 1.0f;
 	const float offsetX = 45.0f; 
 	const float offsetY = -40.0f;
@@ -36,7 +36,7 @@ bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
 	// Compute terrain normal using the helper function
 	terrainNormal = TerrainNormalmapTex.SampleLevel(samplerLinearClamp, localUvs , 0).rgb;
    
-	return length(height - actualPos.z) < 1;
+	return length(height - actualPos.z) < 0.01;
 }
 
 float light_radiance(float wavelength) {
@@ -220,7 +220,7 @@ float basedLog(float base, float x) {
 
 float TemperatureSample(in PathTracingContext ptc,in float3 pos)
 {
-	float t = saturate((pos.z - 6360.0f) / (6361.0f - 6350.0f));
+	float t = saturate((pos.z - 6360.0f) / (6365.0f - 6355.0f));
 	return lerp(21.0f, 100.0f, t);
 	//return  (-basedLog(ptc.Atmosphere.TempBase, length(pos) - 6360) + ptc.Atmosphere.MinTemp) * 274.15f;
 }
@@ -231,16 +231,18 @@ float TemperatureIOR(in float tmp1, in float tmp2)
 }
 
 float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
-	float delta = distance(p1, p2);
+	float delta = 0.00001f;
+	float p3 = p1 + delta * p2;
+	float p4 = p1 - delta * p2;
 	// Sample the refractive index at nearby points for finite difference computation
-	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at point P1
-	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(delta, 0, 0)), TemperatureSample(ptc, p2+ float3(delta, 0, 0)));  // Sample at a point offset by delta in the x direction
+	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p3));  // Sample at point P1
+	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1 ), TemperatureSample(ptc, p4));  // Sample at a point offset by delta in the x direction
 
-	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (y1)
-	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, delta, 0)), TemperatureSample(ptc, p2 + float3(0, delta, 0)));  // Sample offset in the y direction
+	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p3));  // Sample at original point (y1)
+	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p4 ));  // Sample offset in the y direction
 
-	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (z1)
-	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, 0, delta)), TemperatureSample(ptc, p2 + float3(0, 0, delta)));  // Sample at a point offset by delta in the z direction
+	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p3));  // Sample at original point (z1)
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p4));  // Sample at a point offset by delta in the z direction
 
 	// Compute finite differences (gradients)
 	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
@@ -652,7 +654,7 @@ bool Integrate(
 	 else // null event
 	 {
 	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint),TemperatureSample(ptc, P1));  // Ratio of refractive indices (e.g., air to glass)
-	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint, P1);
+	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint, localWi.d);
 	 		float3 refractedRay = refract(localWi.d, normalize(-localWi.d +normal * 1000 ), eta);
 	 		localWi.d = refractedRay;
 	 	//addGpuDebugLine(ptc.P, ptc.P + refractedRay * 10.0f, float3(1.0f, 0.0f, 0.0f));
@@ -1003,6 +1005,7 @@ float2 LightIntegratorInner(
 ////////////////////////////////////////////////////////////////////////////////
 
 
+/*
 float4 WaveLengthToRGB(float Wavelength) {
 	float Red, Green, Blue;
 	float factor;
@@ -1036,6 +1039,7 @@ float4 WaveLengthToRGB(float Wavelength) {
 		Green = 0.0;
 		Blue = 0.0;
 	}
+	}
 	// Let the intensity fall off near the vision limits
 	if((Wavelength >= 380) && (Wavelength < 420)) {
 		factor = 0.3 + 0.7 * (Wavelength - 380) / (420 - 380);
@@ -1055,7 +1059,7 @@ float4 WaveLengthToRGB(float Wavelength) {
 	float BlueIntensity = Blue == 0.0 ? 0 : saturate(IntensityMax * pow(Blue * factor, Gamma));
 
 	return float4(RedIntensity, GreenIntensity, BlueIntensity, 1.0);
-}
+}*/
 
 struct PixelOutputStruct
 {
