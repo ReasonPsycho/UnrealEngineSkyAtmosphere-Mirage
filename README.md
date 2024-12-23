@@ -1,6 +1,9 @@
 # Sky Atmosphere Rendering Technique with refraction
 
 In this github project I am adding refraction based on temperature changes in attempt to replicate mirage.
+Currently I managed to refract lighting based on temprerature. Right now I need to find appropate enviroment variables to create mirage and find tune my code.
+
+![Zrzut ekranu 2024-12-23 163953](https://github.com/user-attachments/assets/a98e38a8-13d2-4157-967c-a6cc730d9420)
 
 ## Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
 
