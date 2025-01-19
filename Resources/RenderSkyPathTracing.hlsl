@@ -12,8 +12,8 @@ Texture2D<float4>  TerrainNormalmapTex				: register(t9);
 bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
 {
 	float3 actualPos = float3(vectorPos.x,vectorPos.y,vectorPos.z);
-	const float maxTerrainHeight = 6360.0f;
-	const float globalTerrainWidth = 100.0f;
+	const float maxTerrainHeight = 6359.0f;
+	const float globalTerrainWidth = 50.0f;
 	const float textureTerrainWidth = 1.0f;
 	const float offsetX = 45.0f; 
 	const float offsetY = -40.0f;
@@ -220,9 +220,15 @@ float basedLog(float base, float x) {
 
 float TemperatureSample(in PathTracingContext ptc,in float3 pos)
 {
-	float t = saturate((pos.z - 6360.0f) / (6361.0f - 6350.0f));
-	return lerp(21.0f, 100.0f, t);
-	//return  (-basedLog(ptc.Atmosphere.TempBase, length(pos) - 6360) + ptc.Atmosphere.MinTemp) * 274.15f;
+	float seeLevel = 6360.8f;
+	float diffrence = 5.0f;
+
+	/*http://fisicaatmo.at.fcen.uba.ar/practicas/ISAweb.pdf*/
+	
+	float t = saturate((pos.z - seeLevel) / diffrence);
+	//return 288.15+(-0.0065) *( pos.z + seeLevel) * 1000;
+	return lerp(60.0f, 21.0f, t) + 274.15f;
+	//return  (-basedLog(ptc.Atmosphere.TempBase, length(pos) - 6360) + ptc.AtmospFhere.MinTemp) * 274.15f;
 }
 
 float TemperatureIOR(in float tmp1, in float tmp2)
@@ -230,25 +236,21 @@ float TemperatureIOR(in float tmp1, in float tmp2)
 	return 1.0 + 0.000292 * saturate(tmp1 / max(tmp2, 0.001)); // Avoid division by near-zero
 }
 
-float3 TemperatureNormal(in PathTracingContext ptc,in float3 p1,in float3 p2){
-	float delta = distance(p1, p2);
-	// Sample the refractive index at nearby points for finite difference computation
-	float eta_x1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at point P1
-	float eta_x2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(delta, 0, 0)), TemperatureSample(ptc, p2+ float3(delta, 0, 0)));  // Sample at a point offset by delta in the x direction
+float3 TemperatureNormal(in PathTracingContext ptc ,in float eta_z1 ,in float3 p1,in float3 p2){
+	float gradient_z = 0;
 
-	float eta_y1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (y1)
-	float eta_y2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, delta, 0)), TemperatureSample(ptc, p2 + float3(0, delta, 0)));  // Sample offset in the y direction
-
-	float eta_z1 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2));  // Sample at original point (z1)
-	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1 + float3(0, 0, delta)), TemperatureSample(ptc, p2 + float3(0, 0, delta)));  // Sample at a point offset by delta in the z direction
-
-	// Compute finite differences (gradients)
-	float gradient_x = (eta_x2 - eta_x1) / delta;  // Approximate gradient in x direction
-	float gradient_y = (eta_y2 - eta_y1) / delta;  // Approximate gradient in y direction
-	float gradient_z = (eta_z2 - eta_z1) / delta;  // Approximate gradient in z direction
-
+	//We use  forward difference and take eta_z1 for optimalization
+	float delta = 0.01f;
+	float eta_z2 = TemperatureIOR(TemperatureSample(ptc, p1), TemperatureSample(ptc, p2 + float3(0, 0, delta)));  // Sample at a point offset by delta in the z direction
+	float difference = eta_z2 - eta_z1;
+	if (abs(difference) > 1e-12) {
+		gradient_z = difference / delta;
+	}else
+	{
+		return float3(0, 0, 0);
+	}
 	// Combine to form the gradient vector (normal vector to the isosurface)
-	return normalize(float3(gradient_x, gradient_y, gradient_z));
+	return normalize(float3(0, 0, gradient_z));
 }
 
 ////////////////////////////////////////////////////////////
@@ -609,8 +611,19 @@ bool Integrate(
 			break; // Did not terminate in the volume
 		}
 
+		
 		float zeta = random01(ptc);
-		t = t + infiniteTransmittanceIS(ptc.extinctionMajorant, zeta); // unbounded domain proportional with PDF to the transmittance
+	 	t = t + infiniteTransmittanceIS(ptc.extinctionMajorant, zeta);
+		//t = t - log(1.0f - zeta) / (ptc.extinctionMajorant * 20);
+		/*
+		if (ptc.P.z < 6359 + 10 && ptc.P.z > 6359 - 1) 
+		{
+			t = t - log(1.0f - zeta) / (ptc.extinctionMajorant * 20) ; // unbounded domain proportional with PDF to the transmittance
+		}else
+		{
+			t = t - log(1.0f - zeta) / (ptc.extinctionMajorant); // unbounded domain proportional with PDF to the transmittance
+		}
+		*/
 
 		// Update the shading context
 		float3 P1 = P0 + t * localWi.d;
@@ -652,9 +665,13 @@ bool Integrate(
 	 else // null event
 	 {
 	 		float eta = TemperatureIOR(TemperatureSample(ptc, orginalPoint),TemperatureSample(ptc, P1));  // Ratio of refractive indices (e.g., air to glass)
-	 	 	float3 normal = TemperatureNormal(ptc,orginalPoint, P1);
-	 		float3 refractedRay = refract(localWi.d, normalize(-localWi.d +normal * 1000 ), eta);
-	 		localWi.d = refractedRay;
+	 	 	float3 normal = TemperatureNormal(ptc,eta,orginalPoint, P1);
+			 if (length(normal) > 0)
+	 		{
+	 			float3 refractedRay = refract(localWi.d, normalize(-localWi.d +normal*1000), eta);
+	 			localWi.d = refractedRay;
+	 		}
+	 		
 	 	//addGpuDebugLine(ptc.P, ptc.P + refractedRay * 10.0f, float3(1.0f, 0.0f, 0.0f));
 	 }
 	} while (!(eventScatter || eventAbsorb));

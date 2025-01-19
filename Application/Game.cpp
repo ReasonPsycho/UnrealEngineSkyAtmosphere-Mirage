@@ -813,6 +813,7 @@ void Game::render()
 
 		ImGui::Text("View");
 		ImGui::SliderFloat("Height", &uiCamHeight, 0.001f, 2.0f*(AtmosphereInfos.top_radius - AtmosphereInfos.bottom_radius), "%.3f", 3.0f);
+		ImGui::Text("Height above the sea: %.3f", uiCamHeight + 6359);
 		ImGui::SliderFloat("Forward", &uiCamForward, -3.0f*AtmosphereInfos.top_radius, -1.0f, "%.3f", 3.0f);
 
 		ImGui::Text("Sun");
@@ -921,7 +922,7 @@ void Game::render()
 		// Convert UI to physical data
 		AtmosphereInfos.mie_scattering = scale3(MieScatteringColor, MieScatteringLength);
 		AtmosphereInfos.mie_extinction = add3(AtmosphereInfos.mie_scattering, scale3(MieAbsColor, MieAbsLength));
-		AtmosphereInfos.rayleigh_scattering = scale3(RayleighScatteringColor, RayleighScatteringLength);
+		AtmosphereInfos.rayleigh_scattering = scale3(RayleighScatteringColor, RayleighScatteringLength); // coeff not color wtf?
 		AtmosphereInfos.absorption_extinction = scale3(AbsorptionColor, AbsorptionLength);
 		AtmosphereInfos.top_radius = AtmosphereInfos.bottom_radius + AtmosphereHeight;
 		AtmosphereInfos.mie_density.layers[1].exp_scale = -1.0f / MieScaleHeight;
