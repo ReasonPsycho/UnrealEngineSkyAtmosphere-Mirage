@@ -8,12 +8,14 @@
 
 Texture2D<float4> TerrainHeightmapTex : register(t0);
 Texture2D<float4> TerrainNormalmapTex : register(t9);
+Texture2D<float4> TemperatureMap : register(t10);
+
 
 bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
 {
     float3 actualPos = float3(vectorPos.x, vectorPos.y, vectorPos.z);
     const float maxTerrainHeight = 6359.0f;
-    const float globalTerrainWidth = 6.0f;
+    const float globalTerrainWidth = 5.0f;
     const float textureTerrainWidth = 1.0f;
     const float offsetX = -2.0f;
     const float offsetY = -2.0f;
@@ -36,7 +38,7 @@ bool IsBelowTerrain(in float3 vectorPos, out float3 terrainNormal)
     // Compute terrain normal using the helper function
     terrainNormal = TerrainNormalmapTex.SampleLevel(samplerLinearClamp, localUvs, 0).rgb;
 
-    return length(height - actualPos.z) < 1;
+    return length(height - length(actualPos)) < 1;
 }
 
 float light_radiance(float wavelength)
@@ -217,17 +219,50 @@ float basedLog(float base, float x)
     return log(x) / log(base);
 }
 
-float TemperatureSample( in float3 pos)
+float SampleTemperature( 
+    float3 p,                // Point in space [x, y, z].
+    Texture2D texture_1d,    // 2D texture containing the red channel values (normalized 0–1).
+    float precision,         // Altitude resolution per pixel (in kilometers). 0.0001
+    float height,      // Number of pixels in the 1D texture (provided from CPU). 5 000 000
+    float minTemperatureF,   // Minimum temperature mapped to red value 0. -100.0
+    float maxTemperatureF    // Maximum temperature mapped to red value 255. 100.0
+)
 {
-    float seeLevel = 6359.0f;
-    float diffrence = 0.01f;
+
+    float seeLevel = 6361.0002f;
+    float diffrence = 3.0f;
 
     /*http://fisicaatmo.at.fcen.uba.ar/practicas/ISAweb.pdf*/
 
-    float t = saturate((pos.z - seeLevel) / diffrence);
+    float t = saturate((p.z - seeLevel) / diffrence);
     //return 288.15+(-0.0065) *( pos.z + seeLevel) * 1000;
-    return lerp(12.0f, 30.0f, t) + 274.15f;
-    //return  (-basedLog(ptc.Atmosphere.TempBase, length(pos) - 6360) + ptc.AtmospFhere.MinTemp) * 274.15f;
+    return lerp(12.0f, 20.0f, t) + 274.15f;
+
+    
+    const float seaLevel = 6360.0f;     // Compute the total altitude range in kilometers covered by the texture
+    const float max_texture_width = 16384;
+
+    float pixels  = floor(height / precision); // Number of pixels in the 2D texture;
+    const int max_texture_height = floor(pixels / max_texture_width) * 100;
+
+    float3 position = p;
+    position.z -= seaLevel;
+    // Map z-coordinate (height in meters) to texture position in [0, 1]
+    float pixel = floor(length(position) / precision); // also just height
+    
+    float2 textureCoord = float2(
+        (pixel % max_texture_width) / max_texture_width,
+       floor(pixel / max_texture_width) / max_texture_height
+    );
+    textureCoord = clamp(textureCoord, float2(0.0, 0.0), float2(1.0, 1.0)); // Clamp only for safety
+
+    // Sample the texture at the computed texture coordinate
+    float redValue = texture_1d.SampleLevel(samplerLinearClamp, textureCoord,0).r; // Red channel (normalized to 0-1)
+
+    // Reverse normalization: Convert redValue (0–1) back to temperature in Fahrenheit
+    float temperatureF = lerp(minTemperatureF, maxTemperatureF, redValue);
+
+    return temperatureF;
 }
 
 float TemperatureIOR(in float tmp1, in float tmp2)
@@ -240,18 +275,18 @@ float3 TemperatureNormal(float3 direction, float3 p1, float3 p2) {
     float delta = 0.0001f;
 
     // Gradient in the x direction
-    float t1x = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2));
-    float t2x = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2 + float3(delta, 0.0, 0.0)));
+    float t1x = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2,TemperatureMap, 0.0001, 50, -100.0,100.0));
+    float t2x = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2 + float3(delta, 0.0, 0.0),TemperatureMap, 0.0001, 5000000, -100.0,100.0));
     float gradient_x = (t2x - t1x) / delta;
 
     // Gradient in the y direction
-    float t1y = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2));
-    float t2y = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2 + float3(0.0, delta, 0.0)));
+    float t1y = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2,TemperatureMap, 0.0001, 50, -100.0,100.0));
+    float t2y = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2 + float3(0.0, delta, 0.0),TemperatureMap, 0.0001, 5000000, -100.0,100.0));
     float gradient_y = (t2y - t1y) / delta;
 
     // Gradient in the z direction
-    float t1z = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2));
-    float t2z = TemperatureIOR(TemperatureSample(p1), TemperatureSample(p2 + float3(0.0, 0.0, delta)));
+    float t1z = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2,TemperatureMap, 0.0001, 50, -100.0,100.0));
+    float t2z = TemperatureIOR(SampleTemperature(p1,TemperatureMap, 0.0001, 50, -100.0,100.0), SampleTemperature(p2 + float3(0.0, 0.0, delta),TemperatureMap, 0.0001, 5000000, -100.0,100.0));
     float gradient_z = (t2z - t1z) / delta;
 
     // Small value to avoid division by zero
@@ -624,24 +659,12 @@ bool Integrate(
         {
             break; // Did not terminate in the volume
         }
-
-
+        
         float zeta = random01(ptc);
         t = t + infiniteTransmittanceIS(ptc.extinctionMajorant, zeta);
-        //t = t - log(1.0f - zeta) / (ptc.extinctionMajorant * 20);
-        /*
-        if (ptc.P.z < 6359 + 10 && ptc.P.z > 6359 - 1) 
-        {
-            t = t - log(1.0f - zeta) / (ptc.extinctionMajorant * 20) ; // unbounded domain proportional with PDF to the transmittance
-        }else
-        {
-            t = t - log(1.0f - zeta) / (ptc.extinctionMajorant); // unbounded domain proportional with PDF to the transmittance
-        }
-        */
 
         // Update the shading context
         float3 P1 = P0 + t * localWi.d;
-        float3 orginalPoint = ptc.P;
         ptc.P = P1;
 
         if (ptc.singleScatteringRay)
@@ -649,6 +672,7 @@ bool Integrate(
             ptc.opaqueHit = IsBelowTerrain(ptc.P, ptc.N);
         }
 
+        float lastDiffrence = 0;
 #if DEBUGENABLED // Sample point
 		if (ptc.debugEnabled) { addGpuDebugCross(ToDebugWorld + ptc.P, float3(0.5, 1.0, 1.0), 0.5); }
 #endif
@@ -679,8 +703,34 @@ bool Integrate(
 
         else // null event
         {
-      
+            float t1 = SampleTemperature(P0,TemperatureMap, 0.0001, 50, -100.0,100.0);
+            float t2 = SampleTemperature(P1,TemperatureMap, 0.0001, 50, -100.0,100.0);
+            float currentDifference = abs(t2 - t1) + lastDiffrence;
+
+            if (currentDifference > 0.001)
+            {
+                P1 = P0 + localWi.d * 0.001;
             
+                t1 = SampleTemperature(P0,TemperatureMap, 0.0001, 50, -100.0,100.0);
+                t2 = SampleTemperature(P1,TemperatureMap, 0.0001, 50, -100.0,100.0);
+                do
+                {
+                    float eta = TemperatureIOR(t1, t2);
+                    float3 normal = TemperatureNormal(localWi.d, P0, P1);
+                    localWi.d = refract(localWi.d, normal, eta);
+                    P0 = P1;
+                    P1 = P0 + localWi.d * 0.001;
+                    ptc.P = P1;
+                    lastDiffrence = 0;
+                    t1 = SampleTemperature(P0,TemperatureMap, 0.0001, 50, -100.0,100.0);
+                    t2 = SampleTemperature(P1,TemperatureMap, 0.0001, 50, -100.0,100.0);
+                    currentDifference = abs(t2 - t1);
+                }while (currentDifference > 0.001);
+                
+            }else
+            {
+                lastDiffrence = currentDifference;
+            }    
             //addGpuDebugLine(ptc.P, ptc.P + refractedRay * 10.0f, float3(1.0f, 0.0f, 0.0f));
         }
     }

@@ -420,6 +420,7 @@ void Game::allocateResolutionIndependentResources()
 	mBlueNoise2dTex = createTexture2dFromExr("./Resources/bluenoise.exr");		// I do not remember where this noise texture comes from.
 	mTerrainHeightmapTex = createTexture2dFromExr("./Resources/fig6height.exr");
 	mTerrainNormalmapTex = createTexture2dFromExr("./Resources/Normals.exr");
+	mTerrainTemperatureTex = createTexture2dFromExr("./Resources/fig6TemperatureMap.exr");
 
 	D3dTexture2dDesc desc = Texture2D::initDefault(DXGI_FORMAT_R16G16B16A16_FLOAT, LutsInfo.TRANSMITTANCE_TEXTURE_WIDTH, LutsInfo.TRANSMITTANCE_TEXTURE_HEIGHT, true, true);
 	mTransmittanceTex = new Texture2D(desc);

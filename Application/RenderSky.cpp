@@ -157,7 +157,7 @@ void Game::renderPathTracing()
 		else
 		{
 		D3dRenderTargetView* const rtvs[3] = { mPathTracingLuminanceBuffer->mRenderTargetView, mPathTracingTransmittanceBuffer->mRenderTargetView ,mPathTracingDiffuseBuffer->mRenderTargetView};
-		context->OMSetRenderTargetsAndUnorderedAccessViews(3, rtvs, nullptr, 3, 2, uavs, uavInitCounts); //changed UAVStartSlot from 2 to 3
+		context->OMSetRenderTargetsAndUnorderedAccessViews(3, rtvs, nullptr, 5, 2, uavs, uavInitCounts);
 		context->OMSetBlendState(BlendAddRGBA->mState, nullptr, 0xffffffff);
 		}
 		context->OMSetDepthStencilState(mDisabledDepthStencilState->mState, 0);
@@ -185,6 +185,7 @@ void Game::renderPathTracing()
 		context->PSSetSamplers(1, 1, &SamplerShadow->mSampler);
 		context->PSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
 		context->PSSetShaderResources(9, 1, &mTerrainNormalmapTex->mShaderResourceView);
+		context->PSSetShaderResources(10, 1, &mTerrainTemperatureTex->mShaderResourceView);
 
 		context->PSSetShaderResources(1, 1, &mBlueNoise2dTex->mShaderResourceView);
 		context->PSSetShaderResources(2, 1, &mTransmittanceTex->mShaderResourceView);

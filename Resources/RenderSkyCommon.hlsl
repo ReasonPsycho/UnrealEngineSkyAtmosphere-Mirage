@@ -4,8 +4,8 @@
 #include "./Resources/SkyAtmosphereCommon.hlsl"
 
 #define GPUDEBUG_CLIENT
-#define GPU_DEBUG_LINEBUFFER_UAV      u2
-#define GPU_DEBUG_LINEDISPATCHIND_UAV u3
+#define GPU_DEBUG_LINEBUFFER_UAV      u5
+#define GPU_DEBUG_LINEDISPATCHIND_UAV u6
 #include "./Resources/GpuDebugPrimitives.hlsl"
 
 
@@ -22,7 +22,7 @@ RWTexture2D<float4>  OutputTexture						: register(u0);
 RWTexture2D<float4>  OutputTexture1						: register(u1);
 
 
-#define DEBUGENABLED 0
+#define DEBUGENABLED 1
 #define ToDebugWorld float3(0, 0, -ptc.Atmosphere.BottomRadius)
 
 #define RAYDPOS 0.00001f
