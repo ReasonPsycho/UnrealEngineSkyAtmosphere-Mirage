@@ -283,7 +283,7 @@ float3 getUniformSphereSample(float zetaX, float zetaY)
 // Zeta is a random number in [0,1]
 float infiniteTransmittanceIS(float extinction, float zeta) // def extinction = 0.00759944446684 and since it's random zeta is 0.5 so each ray moved like 13.2040351536 km in one step yiykes
 {
-	return -log(1.0f - zeta) / (extinction * 20);
+	return -log(1.0f - zeta) / (extinction * 40);
 }
 // Normalized PDF from a sample on an infinitely long path according to transmittance and extinction.
 float infiniteTransmittancePDF(float extinction, float transmittance)

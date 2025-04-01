@@ -421,6 +421,7 @@ void Game::allocateResolutionIndependentResources()
 	mTerrainHeightmapTex = createTexture2dFromExr("./Resources/fig6height.exr");
 	mTerrainNormalmapTex = createTexture2dFromExr("./Resources/Normals.exr");
 	mTerrainTemperatureTex = createTexture2dFromExr("./Resources/fig6TemperatureMap.exr");
+	mTerrainAlbedoTex = createTexture2dFromExr("./Resources/fig62.exr");
 
 	D3dTexture2dDesc desc = Texture2D::initDefault(DXGI_FORMAT_R16G16B16A16_FLOAT, LutsInfo.TRANSMITTANCE_TEXTURE_WIDTH, LutsInfo.TRANSMITTANCE_TEXTURE_HEIGHT, true, true);
 	mTransmittanceTex = new Texture2D(desc);
@@ -712,6 +713,8 @@ void Game::updateSkyAtmosphereConstant()
 		cb.mie_extinction = AtmosphereInfos.mie_extinction;
 		cb.ground_albedo = AtmosphereInfos.ground_albedo;
 		cb.bottom_radius = AtmosphereInfos.bottom_radius;
+		
+		
 		cb.top_radius = AtmosphereInfos.top_radius;
 		cb.MultipleScatteringFactor = currentMultipleScatteringFactor;
 		cb.MultiScatteringLUTRes = MultiScatteringLUTRes;
@@ -750,6 +753,11 @@ void Game::updateSkyAtmosphereConstant()
 		cb.view_ray = mViewDir;
 		cb.sun_direction = mSunDir;
 
+		cb.altitude1 = AtmosphereInfos.altitude1;
+		cb.temperature1 = AtmosphereInfos.temperature1;
+		cb.altitude2 = AtmosphereInfos.altitude2;
+		cb.temperature2 = AtmosphereInfos.temperature2;
+		
 		SkyAtmosphereBuffer->update(cb);
 	}
 }
@@ -767,9 +775,8 @@ static float RayleighScaleHeight;
 static float AbsorptionLength;
 static GlslVec3 AbsorptionColor;
 
-static float TempBase;
-static float MinTemp;
-static float GroundLevelTemp;
+static float2 TemperaturePoint1;
+static float2 TemperaturePoint2;
 
 static float AtmosphereHeight;
 
@@ -852,9 +859,8 @@ void Game::render()
 			AbsorptionLength = length3(AtmosphereInfos.absorption_extinction);
 			AbsorptionColor = AbsorptionLength == 0.0f ? vec3Zero : normalize3(AtmosphereInfos.absorption_extinction, AbsorptionLength);
 
- 		TempBase = 0.9f;
-		MinTemp = 0.0f;
-		GroundLevelTemp = 0.0f;
+ 		TemperaturePoint1 = float2(12.0f, 0.0f);
+		TemperaturePoint2 = float2(30.0f, 0.01f);
 		}
 
 		ImGui::ColorEdit3( "MieScattCoeff", &MieScatteringColor.x);
@@ -871,9 +877,8 @@ void Game::render()
 		ImGui::SliderFloat("RayScaleHeight", &RayleighScaleHeight, 0.5f, 20.0f);
 		ImGui::ColorEdit3("Ground albedo", &uiGroundAbledo.x);
 
-		ImGui::SliderFloat("TempBase", &TempBase, 0.0f, 100000.0f, "%.5f", 0.1f);
-		ImGui::SliderFloat("MinTemp", &MinTemp, -100.0f, 100.0f, "%.5f", 0.2f);
-		ImGui::SliderFloat("GroundLevelTemp", &GroundLevelTemp, -1000.0f, 1000.0f, "%.5f", 10.0f);
+		ImGui::SliderFloat2("TemperaturePoint1", &TemperaturePoint1.x, 0.0f, 100.0f, "%.3f", 1.0f); 
+		ImGui::SliderFloat2("TemperaturePoint2", &TemperaturePoint2.x, 0.0f, 100.0f, "%.3f", 1.0f); 
 
 		ImGui::End();
 		////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -930,9 +935,10 @@ void Game::render()
 		AtmosphereInfos.rayleigh_density.layers[1].exp_scale = -1.0f / RayleighScaleHeight;
 		AtmosphereInfos.ground_albedo = uiGroundAbledo;
 
-		AtmosphereInfos.TempBase = TempBase;
-		AtmosphereInfos.MinTemp = MinTemp;
-		AtmosphereInfos.GroundLevelTemp = GroundLevelTemp;
+		AtmosphereInfos.temperature1 = TemperaturePoint1.x;
+		AtmosphereInfos.altitude1 = TemperaturePoint1.y;
+		AtmosphereInfos.temperature2 = TemperaturePoint2.x;
+		AtmosphereInfos.altitude2 = TemperaturePoint2.y;
 	}
 
 	GPU_SCOPED_TIMEREVENT(GameRender, 75, 75, 75);

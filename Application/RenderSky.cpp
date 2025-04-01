@@ -186,6 +186,7 @@ void Game::renderPathTracing()
 		context->PSSetShaderResources(0, 1, &mTerrainHeightmapTex->mShaderResourceView);
 		context->PSSetShaderResources(9, 1, &mTerrainNormalmapTex->mShaderResourceView);
 		context->PSSetShaderResources(10, 1, &mTerrainTemperatureTex->mShaderResourceView);
+		context->PSSetShaderResources(11, 1, &mTerrainAlbedoTex->mShaderResourceView);
 
 		context->PSSetShaderResources(1, 1, &mBlueNoise2dTex->mShaderResourceView);
 		context->PSSetShaderResources(2, 1, &mTransmittanceTex->mShaderResourceView);

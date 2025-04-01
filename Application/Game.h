@@ -130,6 +130,7 @@ private:
 	Texture2D* mTerrainHeightmapTex;
 	Texture2D* mTerrainNormalmapTex;
 	Texture2D* mTerrainTemperatureTex;
+	Texture2D* mTerrainAlbedoTex;
 	Texture2D* mBlueNoise2dTex;
 
 	uint32 mFrameId = 0;
@@ -167,10 +168,10 @@ private:
 		DimensionlessSpectrum ground_albedo;
 		float pad0;
 
-	float TempBase;
-	float MinTemp;
-	float   pad1;
-	float   pad2;
+		float temperature1;
+		float altitude1;
+		float temperature2;
+		float altitude2;
 
 		float rayleigh_density[12];
 		float mie_density[12];
