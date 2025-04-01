@@ -4,7 +4,7 @@
 
 This repository contains the codebase for my diploma dissertation, "Image Synthesis of the Digital Environment Considering the Influence of Temperature on Light Ray Paths."
 
-In this project, I attempted to add refraction based on temperature variations to simulate mirages. However, despite my best efforts, using a volumetric path tracer as a starting point turned out to be a poor choice for this kind of work, and I wasn’t able to achieve a satisfying effect.
+In this project, I attempted to add refraction based on temperature variations to simulate mirages. However, despite my best efforts, using a sebh volumetric path tracer as a starting point turned out to be a poor choice for this kind of work, and I wasn’t able to achieve a satisfying effect.
 
 If you're interested, you can read my dissertation in Polish [here](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/Image%20synthesis%20of%20the%20digital%20environment%20taking%20into%20account%20the%20influence%20of%20temperature%20on%20the%20light%20ray%20path%20by%20Krzysztof%20Czerwiński.pdf).
 
