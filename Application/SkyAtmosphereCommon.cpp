@@ -46,6 +46,7 @@ void SetupEarthAtmosphere(AtmosphereInfo& info)
 	info.absorption_density.layers[1] = { 0.0f, 0.0f, 0.0f, -1.0f / 15.0f, 8.0f / 3.0f };
 	info.absorption_extinction = { 0.000650f, 0.001881f, 0.000085f };	// 1/km
 
+	
 	const double max_sun_zenith_angle = PI * 120.0 / 180.0; // (use_half_precision_ ? 102.0 : 120.0) / 180.0 * kPi;
 	info.mu_s_min = (float) cos(max_sun_zenith_angle);
 }

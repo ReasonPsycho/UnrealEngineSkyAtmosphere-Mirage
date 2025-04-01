@@ -51,6 +51,7 @@ power and luminous power (wavelength is also a length, but we distinguish the
 two for increased clarity).
 */
 
+
 #define Length float
 #define Wavelength float
 #define Angle float
@@ -232,6 +233,7 @@ struct DensityProfile {
 The atmosphere parameters are then defined by the following struct:
 */
 
+
 struct AtmosphereParameters {
   // The solar irradiance at the top of the atmosphere.
   IrradianceSpectrum solar_irradiance;
@@ -283,8 +285,8 @@ struct AtmosphereParameters {
   // Earth case, 102 degrees is a good choice - yielding mu_s_min = -0.2).
   Number mu_s_min;
 
-  Number TempBase;
-  Number MinTemp;
-  Number GroundLevelTemp;
-  
+  Number altitude1;
+  Number temperature1; 
+  Number altitude2;
+  Number temperature2;
 };

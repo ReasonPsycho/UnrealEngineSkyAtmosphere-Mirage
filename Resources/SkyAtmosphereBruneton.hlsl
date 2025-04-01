@@ -103,6 +103,12 @@ cbuffer SKYATMOSPHERE_BUFFER : register(b1)
 	float  pad6;
 	float3 view_ray;
 	float  pad7;
+
+	float  temperature1;
+	float  altitude1;
+	float  temperature2;
+	float  altitude2;
+
 };
 
 cbuffer SKYATMOSPHERE_SIDE_BUFFER : register(b2)
@@ -186,6 +192,12 @@ AtmosphereParameters GetAtmosphereParameters()
 	Parameters.ground_albedo = ground_albedo;
 	Parameters.bottom_radius = bottom_radius;
 	Parameters.top_radius = top_radius;
+	
+	Parameters.temperature1 = temperature1;
+	Parameters.altitude1 = altitude1;
+	Parameters.temperature2 = temperature2;
+	Parameters.altitude2 = altitude2;
+	
 	return Parameters;
 }
 

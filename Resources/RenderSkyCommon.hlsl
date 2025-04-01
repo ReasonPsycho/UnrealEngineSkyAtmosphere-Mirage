@@ -4,8 +4,8 @@
 #include "./Resources/SkyAtmosphereCommon.hlsl"
 
 #define GPUDEBUG_CLIENT
-#define GPU_DEBUG_LINEBUFFER_UAV      u2
-#define GPU_DEBUG_LINEDISPATCHIND_UAV u3
+#define GPU_DEBUG_LINEBUFFER_UAV      u5
+#define GPU_DEBUG_LINEDISPATCHIND_UAV u6
 #include "./Resources/GpuDebugPrimitives.hlsl"
 
 
@@ -22,7 +22,7 @@ RWTexture2D<float4>  OutputTexture						: register(u0);
 RWTexture2D<float4>  OutputTexture1						: register(u1);
 
 
-#define DEBUGENABLED 0
+#define DEBUGENABLED 1
 #define ToDebugWorld float3(0, 0, -ptc.Atmosphere.BottomRadius)
 
 #define RAYDPOS 0.00001f
@@ -34,7 +34,7 @@ RWTexture2D<float4>  OutputTexture1						: register(u1);
 #define TRANSMITANCE_METHOD 2
 #endif
 #ifndef MULTISCATAPPROX_ENABLED 
-#define MULTISCATAPPROX_ENABLED 0 
+#define MULTISCATAPPROX_ENABLED 1 
 #endif
 #ifndef GAMEMODE_ENABLED 
 #define GAMEMODE_ENABLED 0 
@@ -281,9 +281,9 @@ float3 getUniformSphereSample(float zetaX, float zetaY)
 
 // Generate a sample (using importance sampling) along an infinitely long path with a given constant extinction.
 // Zeta is a random number in [0,1]
-float infiniteTransmittanceIS(float extinction, float zeta)
+float infiniteTransmittanceIS(float extinction, float zeta) // def extinction = 0.00759944446684 and since it's random zeta is 0.5 so each ray moved like 13.2040351536 km in one step yiykes
 {
-	return -log(1.0f - zeta) / extinction;
+	return -log(1.0f - zeta) / (extinction * 40);
 }
 // Normalized PDF from a sample on an infinitely long path according to transmittance and extinction.
 float infiniteTransmittancePDF(float extinction, float transmittance)
