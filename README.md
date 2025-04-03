@@ -1,16 +1,20 @@
-# Sky Atmosphere Rendering Technique with refraction
+# Sky Atmosphere Rendering Technique with Refraction  
 
-![ReadMeComperasion](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/ReadMeComperasion.png)
+![ReadMeComparison](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/ReadMeComperasion.png)  
 
-This repository contains the codebase for my diploma dissertation, "Image Synthesis of the Digital Environment Considering the Influence of Temperature on Light Ray Paths."
+This repository contains the codebase for my diploma dissertation, *"Image Synthesis of the Digital Environment Considering the Influence of Temperature on Light Ray Paths."*  
 
-In this project, I attempted to add refraction based on temperature variations to simulate mirages. However, despite my best efforts, using a sebh volumetric path tracer as a starting point turned out to be a poor choice for this kind of work, and I wasn’t able to achieve a satisfying effect.
+In this project, I attempted to simulate mirages by incorporating refraction based on temperature variations. However, using the SebH volumetric path tracer as a foundation turned out to be a poor choice for this approach. The long ray-marching steps and lack of true intersections with the ground prevented me from achieving a satisfying effect.  
 
-If you're interested, you can read my dissertation in Polish [here](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/Image%20synthesis%20of%20the%20digital%20environment%20taking%20into%20account%20the%20influence%20of%20temperature%20on%20the%20light%20ray%20path%20by%20Krzysztof%20Czerwiński.pdf).
+## Modifications to the Original Project:  
+- Implemented refraction based on temperature differences during null events.  
+- Added collision detection based on ray-ground intersections.  
+- Incorporated depth and diffuse maps based on real-world locations.  
+
+If you're interested, you can read my dissertation in Polish [here](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/Image%20synthesis%20of%20the%20digital%20environment%20taking%20into%20account%20the%20influence%20of%20temperature%20on%20the%20light%20ray%20path%20by%20Krzysztof%20Czerwiński.pdf).  
 
 
-## Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
-
+# Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
 
 This is the project accompanying the paper `A Scalable and Production Ready Sky and Atmosphere Rendering Technique` presented at [EGSR 2020](https://egsr2020.london/program/).
 It can be used to compare the new technique proposed in that paper to [Bruneton et al.](https://github.com/ebruneton/precomputed_atmospheric_scattering) as well as to a real-time path tracer.
