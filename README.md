@@ -6,13 +6,12 @@ This repository contains the codebase for my diploma dissertation, *"Image Synth
 
 In this project, I attempted to simulate mirages by incorporating refraction based on temperature variations. However, using the SebH volumetric path tracer as a foundation turned out to be a poor choice for this approach. The long ray-marching steps and lack of true intersections with the ground prevented me from achieving a satisfying effect.  
 
+If you're interested, you can read my dissertation in Polish [here](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/Image%20synthesis%20of%20the%20digital%20environment%20taking%20into%20account%20the%20influence%20of%20temperature%20on%20the%20light%20ray%20path%20by%20Krzysztof%20Czerwiński.pdf).  
+
 ## Modifications to the Original Project:  
 - Implemented refraction based on temperature differences during null events.  
 - Added collision detection based on ray-ground intersections.  
 - Incorporated depth and diffuse maps based on real-world locations.  
-
-If you're interested, you can read my dissertation in Polish [here](https://github.com/ReasonPsycho/UnrealEngineSkyAtmosphere-Mirage/blob/master/Image%20synthesis%20of%20the%20digital%20environment%20taking%20into%20account%20the%20influence%20of%20temperature%20on%20the%20light%20ray%20path%20by%20Krzysztof%20Czerwiński.pdf).  
-
 
 # Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
 
