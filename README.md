@@ -11,7 +11,7 @@ If you're interested, you can read my dissertation in Polish [here](https://gith
 ## Modifications to the Original Project:  
 - Implemented refraction based on temperature differences during null events.  
 - Added collision detection based on ray-ground intersections.  
-- Incorporated depth and diffuse maps based on real-world locations.  
+- Incorporated depth and diffuse maps based on real-world location.  
 
 # Orginal description - [Unreal Engine](https://www.unrealengine.com) Sky Atmosphere Rendering Technique
 
